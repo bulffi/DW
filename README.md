@@ -23,3 +23,122 @@ BufferedReader reader = new BufferedReader(new FileReader("/Users/zhangzijian/Do
       loader.addMovieAlongWithDirectorAndActor(movie);
     } 
 ```
+
+## 查询格式
+
+前端给出的查询格式还有待讨论，现提出初稿
+
+- 按照时间进行查询及统计（例如XX年有多少电影，XX年XX月有多少电影，XX年XX季度有多少电影，周二新增多少电影等） 
+- 按照电影名称进行查询及统计（例如 XX电影共有多少版本等）
+- 按照导演进行查询及统计（例如 XX导演共有多少电影等）
+- 按照演员进行查询及统计（例如 XX演员主演多少电影，XX演员参演多少电影等）
+- 按照演员和导演的关系进行查询及统计（例如经常合作的演员有哪些，经常合作的导演和演员有哪些）
+- 按照电影类别进行查询及统计（例如 Action 电影共有多少，Adventure 电影共有多少等）
+- 按照用户评价进行查询及统计（例如用户评分3分以上的电影有哪些，用户评价中有正面评价的电影有哪些等）
+- 按照上述条件的组合查询和统计
+ 
+
+首先，我觉得，API 分成两类：
+1. 有起点查询（某段时间内的电影？）
+2. 无起点查询（哪些演员经常合作？）
+
+### 有起点查询
+#### 对谁？
+上面的查询中，都可以化成对「电影」对查询。
+####用什么条件？
+####查它的什么属性？
+这两者是互斥的，用的条件越细，查询者能得到的有用的信息就越少，因为它们表达的都是电影
+
+条件可以表达成以下对象（各个属性是 AND 还是 OR 仍需再定义）
+```json
+{
+    "actors": [
+        "skr",
+        "qaz",
+        "wsd"
+    ],
+    "comment": {
+        "helpfulness": "3/11",
+        "review_text": "This is  asf asfjsalf j alsdf alsf lsjf sal f",
+        "score_from": 2.5,
+        "score_to": 4.5,
+        "summery": "Good!",
+        "time_from": {
+            "day_of_month": 23,
+            "day_of_week": 1,
+            "month": 5,
+            "quarter": 2,
+            "year": 2000
+        },
+        "time_to": {
+            "day_of_month": 19,
+            "day_of_week": 7,
+            "month": 11,
+            "quarter": 4,
+            "year": 2013
+        },
+        "user_id": "DFKSF-234",
+        "user_name": "zzj"
+    },
+    "directors": [
+        "123"
+    ],
+    "main_actor": "skr",
+    "movie_name": "skr skr jjj",
+    "time_from": {
+        "day_of_month": 4,
+        "day_of_week": 2,
+        "month": 1,
+        "quarter": 1,
+        "year": 1999
+    },
+    "time_to": {
+        "day_of_month": 3,
+        "day_of_week": 5,
+        "month": 6,
+        "quarter": 2,
+        "year": 2016
+    },
+    "type": [
+        "Action",
+        "Fiction"
+    ],
+    "version": [
+        "DVD"
+    ]
+}
+```
+对于符合某个条件的电影对象，我们可以查询以下的性质
+- title
+- actor
+- id
+- director
+- date
+- type
+- version
+- comment
+### 无起点查询
+1. 查询 /collaboration （哪些演员经常合作？哪些演员和导演经常合作？哪些导演经常一起执导？）
+2. 查询 /similarUser   （哪些用户对电影的看法是一致的？）
+
+collaboration 可以用类似以下对象来表达
+```json
+{
+	"type":1,  // 种类
+	"threshold":4
+}
+```
+similar user 可以用类似以下对象来表达
+```json
+{
+	"type":1, // 种类（是相近还是相反？）
+	"threshold":4,// 多少次出现相近认为两个用户是相似的？
+        "delta":0.5  // 评分差距多少可以认为是相近？
+}
+```
+### 体现一些变化
+#### 对时间搜索：
+1. 直接存储时间戳，对所有对取出来遍历（java 端得到范围）
+2. 直接存储各个时间属性
+3. 在属性上做索引
+4. 把属性抽离为实体
