@@ -23,3 +23,34 @@ BufferedReader reader = new BufferedReader(new FileReader("/Users/zhangzijian/Do
       loader.addMovieAlongWithDirectorAndActor(movie);
     } 
 ```
+
+## Query Server 模版说明
+
+在完成了数据的导入之后，需要完成数据的查询工作，我们定义了统一的模版从而简化工作。简要说明如下：
+
+![query](img/query.png)
+
+我们可以清楚的看到，有四个字模块，分别是
+
+- entity （存放问题与答案，都是实体类，具有标准的 getter 和 setter 函数，用于实例化前端对象并向前端返回对象）
+- mysql
+- hbase
+- neo4j
+
+其中，后三个模块就是各个自己的查询，他们的主函数（也就是获得前端数据以及返回给前端的地方就在 ***MainHandler 类中，每个类的定义都大致如下所示
+
+```java
+@RestController
+public class HBaseMainHandler {
+    @PostMapping("/HBase/specify")
+    public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery){
+        return new DataAnswer();
+    }
+    @PostMapping("/HBase/general/collaboration")
+    public Object handleCollaborationQuery(@RequestBody CollaborateQuery collaborateQuery){
+        return  new DataAnswer();
+    }
+}
+```
+
+可以看到，你将可以在函数体中获得整个 query 对象，根据要求，你将会返回 DataAnswer（询问具体数据，顺便返回时间） 或者是 TestAnswer（获取查询时间）。

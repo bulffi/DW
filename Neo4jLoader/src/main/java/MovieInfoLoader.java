@@ -103,32 +103,6 @@ public class MovieInfoLoader implements AutoCloseable {
 
   public static void main(String[] args) throws Exception {
     MovieInfoLoader loader = new MovieInfoLoader("bolt://localhost:7687","neo4j","test");
-//    Movie movie = new Movie();
-//    List<String> directors = new ArrayList<>();
-//    List<String> actor = new ArrayList<>();
-//    List<String> version = new ArrayList<>();
-//    List<String> type = new ArrayList<>();
-//    List<String> id = new ArrayList<>();
-//    directors.add("zzj");
-//    directors.add("lym");
-//    directors.add("lh");
-//    directors.add("tyl");
-//    actor.add("ske");
-//    actor.add("shiro");
-//    version.add("DVD");
-//    version.add("HD");
-//    type.add("action");
-//    type.add("comedy");
-//    id.add("FSDKFHJ24");
-//    String title = "zzj first movie";
-//    Date date = new Date();
-//    movie.setActor(actor);
-//    movie.setDirector(directors);
-//    movie.setVersion(version);
-//    movie.setId(id);
-//    movie.setType(type);
-//    movie.setTitle(title);
-//    movie.setReleaseDate(date);
     BufferedReader reader = new BufferedReader(new FileReader("/Users/zhangzijian/Downloads/DW/part-r-00000(1)"));
     for (int i = 0; i < 100; i++) {
       String line = reader.readLine();
