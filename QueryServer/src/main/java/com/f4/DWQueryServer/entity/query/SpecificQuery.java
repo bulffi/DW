@@ -44,7 +44,7 @@ public class SpecificQuery {
     }
     private Comment comment;
     // ========= specify which type of query this is to simplify the server side
-    private List<Integer> ID;
+    private List<String> idList;
     // ========= what do you want?
     // ========= the full answer or just the execution time?
     private String answerType;

@@ -45,7 +45,7 @@ public class MovieInfoLoader implements AutoCloseable {
             if(movieExist(comment.getProduct_id())){
               transaction.run("match (idNode:MOVIE_ID{id:$id})-[:IDENTIFIES]->(m:MOVIE) " +
                               "set m.commentNumber = m.commentNumber + 1, m.totalScore = m.totalScore + $score " +
-                              "merge (c:COMMENT{user_id:$user_id, " +
+                              "create (c:COMMENT{user_id:$user_id, " +
                               "profile_name:$profile_name, helpfulness:$helpfulness, score:$score," +
                               "review_time:$review_time, summary:$summary, review_text:$text})-[:COMMENT_ON]->(m)",
                       parameters("id", comment.getProduct_id(),
@@ -139,30 +139,30 @@ public class MovieInfoLoader implements AutoCloseable {
 
   public static void main(String[] args) throws Exception {
     MovieInfoLoader loader = new MovieInfoLoader("bolt://localhost:7687","zzj","zzjHH");
-//    BufferedReader reader = new BufferedReader(new FileReader("Data/part-r-00000(1)"));
-//    String line = "";
-//    int count = 0;
-//    // load the movie info into the database
-//    logger.info("Begin to load movie info into neo4j");
-//    List<Movie> movieList = new ArrayList<>();
-//    do{
-//      line = reader.readLine();
-//      if(line!=null) {
-//        count ++;
-//        Movie movie = JSON.parseObject(line, Movie.class);
-//        if(!loader.movieExist(movie.getId().get(0))) {
-//          movieList.add(movie);
-//        }
-//        if(movieList.size() % 1000 == 0){
-//          loader.addMovieInfo(movieList);
-//          movieList.clear();
-//        }
-//        if (count % 1000 == 0){
-//          logger.info("Movie inserted #" + count);
-//        }
-//      }
-//    }while (line!=null);
-//    loader.addMovieInfo(movieList);
+    BufferedReader reader = new BufferedReader(new FileReader("Data/part-r-00000(1)"));
+    String line = "";
+    int count = 0;
+    // load the movie info into the database
+    logger.info("Begin to load movie info into neo4j");
+    List<Movie> movieList = new ArrayList<>();
+    do{
+      line = reader.readLine();
+      if(line!=null) {
+        count ++;
+        Movie movie = JSON.parseObject(line, Movie.class);
+        if(!loader.movieExist(movie.getId().get(0))) {
+          movieList.add(movie);
+        }
+        if(movieList.size() % 1000 == 0){
+          loader.addMovieInfo(movieList);
+          movieList.clear();
+        }
+        if (count % 1000 == 0){
+          logger.info("Movie inserted #" + count);
+        }
+      }
+    }while (line!=null);
+    loader.addMovieInfo(movieList);
     // load the comment info into the database
     logger.info("Begin to load movie comment into neo4j");
     String dbURL = "jdbc:sqlserver://localhost:1433;databaseName=ETL_ass_1;user=zzj;password=zzjHH";
@@ -179,8 +179,7 @@ public class MovieInfoLoader implements AutoCloseable {
         commentCount++;
         if(commentCount % 10000 == 0){
           logger.info("Comment inserted #"+commentCount);
-          logger.info("in "+loader.inCount);
-          logger.info("out "+loader.outCount);
+          logger.info("in: "+loader.inCount+"  out: " + loader.outCount);
         }
         try {
           Comment comment = new Comment();

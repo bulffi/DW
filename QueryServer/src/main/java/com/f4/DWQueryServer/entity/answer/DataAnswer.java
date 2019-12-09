@@ -13,5 +13,5 @@ import java.util.List;
 @Data
 public class DataAnswer {
     private List<String> data;
-    private Integer time;
+    private Long time;
 }

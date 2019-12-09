@@ -5,6 +5,9 @@ import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.ClientQuery;
 import com.f4.DWQueryServer.entity.query.CollaborateQuery;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
+import com.f4.DWQueryServer.neo4j.handlers.Query_1;
+import com.f4.DWQueryServer.neo4j.handlers.Query_2;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,8 +21,19 @@ import org.springframework.web.bind.annotation.RestController;
  **/
 @RestController
 public class Neo4jMainHandler {
+    @Autowired
+    Query_1 query_1;
+    @Autowired
+    Query_2 query_2;
     @PostMapping("/Neo4j/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery){
+        if(specificQuery.getIdList().size() == 1){
+            if(specificQuery.getIdList().get(0).equals("2")){
+                if(specificQuery.getAnswerType().equals("data")){
+                    return query_2.getDataAnswer(specificQuery);
+                }
+            }
+        }
         return new DataAnswer();
     }
     @PostMapping("/Neo4j/general/collaboration")

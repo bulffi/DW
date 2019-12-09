@@ -10,5 +10,5 @@ import lombok.Data;
  **/
 @Data
 public class TestAnswer {
-    private int time;
+    private Long time;
 }
