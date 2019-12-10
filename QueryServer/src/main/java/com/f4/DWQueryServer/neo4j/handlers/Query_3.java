@@ -31,7 +31,7 @@ public class Query_3 {
                 queryTemplate = "match (d:DIRECTOR)-[:DIRECTED]->(m:MOVIE)<-[:IDENTIFIES]-(id:MOVIE_ID) where d.name =~ '(.*?)" + name +"(.*?)' return id.id as id";
             }break;
             case "director":{
-                queryTemplate = "match (d1:DIRECTOR)-[:DIRECTED]->(m:MOVIE)<-[:DIRECTED]-(d2:DIRECTOR) where d.name =~ '(.*?)" + name +"(.*?)' return distinct d2.name as name";
+                queryTemplate = "match (d1:DIRECTOR)-[:DIRECTED]->(m:MOVIE)<-[:DIRECTED]-(d2:DIRECTOR) where d1.name =~ '(.*?)" + name +"(.*?)' return distinct d2.name as name";
             }break;
             case "date":{
                 queryTemplate = "match (d:DIRECTOR)-[:DIRECTED]->(m:MOVIE) where d.name =~ '(.*?)" + name +"(.*?)' return m.releaseDate as releaseDate";
