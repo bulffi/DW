@@ -1,4 +1,4 @@
 neo4j:
-  uri: bolt://47.100.49.15/:7687
+  uri: bolt://47.100.49.15:7687
   username: neo4j
   password: QAZxsw741258
