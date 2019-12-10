@@ -1,4 +1,3 @@
-neo4j:
-  uri: bolt://localhost:7687
-  username: zzj
-  password: zzjHH
+spring:
+  profiles:
+    active: neo
