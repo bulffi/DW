@@ -1,6 +1,7 @@
 import entity.MovieInNeo4j;
 import org.neo4j.driver.v1.*;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -49,14 +50,17 @@ public class MovieDateLoader {
         int count_2 = 0;
         for(MovieInNeo4j movie : movieInNeo4js){
             count_2 ++ ;
-            if(count % 1000 == 0){
+            if(count_2 % 1000 == 0){
                 logger.info("write # " + count_2);
             }
             Date date = movie.getReleaseDate();
             Calendar calendar = Calendar.getInstance();
             calendar.setTime(date);
             int year = calendar.get(Calendar.YEAR);
-            int month = calendar.get(Calendar.MONTH) + 1;
+            SimpleDateFormat format  = new SimpleDateFormat("mm");
+            String monthString = format.format(date);
+            int month = Integer.parseInt(monthString);
+            //logger.info("month " + month);
             int quarter = 0;
             if(month < 4){
                 quarter = 1;
@@ -70,7 +74,8 @@ public class MovieDateLoader {
             int dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK);
             int dayOfMonth = calendar.get(Calendar.DAY_OF_MONTH);
             // logger.info(date +" " + year +" " + month +" " + quarter + " " + dayOfMonth + " " + dayOfWeek);
-            String deal = "match (movie:MOVIE{name: $name, releaseDate: $releaseDate, commentNumber: $number, totalScore: $total}) merge (y:YEAR{num: $year}) " +
+            String deal = "match (movie:MOVIE{name: $name, releaseDate: $releaseDate, commentNumber: $number, totalScore: $total}) " +
+                    "merge (y:YEAR{num: $year}) " +
                     "merge (y)-[:OF]->(q:QUARTER{num : $quarter}) merge (y)-[:OF]->(movie) " +
                     "merge (q)-[:OF]->(m:MONTH{num : $month}) merge (q)-[:OF]->(movie) " +
                     "merge (m)-[:OF]->(dow:DAY_OF_WEEK{num : $dow}) merge(m)-[:OF]->(movie) " +
