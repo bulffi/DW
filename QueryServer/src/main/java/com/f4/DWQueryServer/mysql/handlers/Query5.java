@@ -10,4 +10,5 @@ package com.f4.DWQueryServer.mysql.handlers;
  */
 
 public class Query5 {
+
 }

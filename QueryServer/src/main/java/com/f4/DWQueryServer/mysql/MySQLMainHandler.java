@@ -4,10 +4,7 @@ import com.f4.DWQueryServer.entity.answer.DataAnswer;
 import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.CollaborateQuery;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
-import com.f4.DWQueryServer.mysql.handlers.Query1;
-import com.f4.DWQueryServer.mysql.handlers.Query2;
-import com.f4.DWQueryServer.mysql.handlers.Query3;
-import com.f4.DWQueryServer.mysql.handlers.Query4;
+import com.f4.DWQueryServer.mysql.handlers.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,6 +28,9 @@ public class MySQLMainHandler {
     Query3 query3;
     @Autowired
     Query4 query4;
+
+    @Autowired
+    Query6 query6;
 
     @PostMapping("/MySQL/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery) throws SQLException {
@@ -64,6 +64,13 @@ public class MySQLMainHandler {
                         return query4.getDataAnswer(specificQuery);
                     }else {
                         return query4.getTestAnswer(specificQuery);
+                    }
+                }
+                case "6":{
+                    if(specificQuery.getAnswerType().equals("data")){
+                        return query6.getDataAnswer(specificQuery);
+                    }else {
+                        return query6.getTestAnswer(specificQuery);
                     }
                 }
             }
