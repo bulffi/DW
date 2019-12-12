@@ -40,8 +40,12 @@ public class Neo4jMainHandler {
             String queryID = specificQuery.getIdList().get(0);
             switch (queryID){
                 case "1":{
-
-                }break;
+                    if(specificQuery.getAnswerType().equals("data")){
+                        return query_1.getDataAnswer(specificQuery);
+                    }else {
+                        return query_1.getTestAnswer(specificQuery);
+                    }
+                }
                 case "2":{
                     if(specificQuery.getAnswerType().equals("data")){
                         return query_2.getDataAnswer(specificQuery);
