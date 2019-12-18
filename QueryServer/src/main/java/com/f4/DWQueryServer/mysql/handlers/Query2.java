@@ -6,10 +6,7 @@ import com.f4.DWQueryServer.entity.query.SpecificQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,55 +41,99 @@ public class Query2 { //按电影名称查询
             long endTime =  System.currentTimeMillis();//结束计时
             long usedTime = endTime-startTime;//计算耗时(单位为毫秒)
 
-            resultSet.next();
-            String date = resultSet.getString(1) + '-'
-                    + resultSet.getString(2) + '-'
-                    + resultSet.getString(3);
             List<String> list = new ArrayList<String>();
-            list.add(date);
+            while(resultSet.next()){
+                String date = resultSet.getString(1) + '-'
+                        + resultSet.getString(2) + '-'
+                        + resultSet.getString(3);
+                list.add(date);
+            }
+
 
             DataAnswer dataAnswer = new DataAnswer();
             dataAnswer.setData(list);
             dataAnswer.setTime(usedTime);
             return dataAnswer;
         }
-        else {
-            if(answer.equals("count")){ // * 电影有多少同名电影
+        if(answer.equals("comment")){
+//        select * from movie_review
+//        where productID in
+//        (
+//                select movie_id
+//                from movie_info_fact
+//                where movie_title = ""
+//        );
+            preparedStatement = connection.prepareStatement(
+                    "select * from movie_review " +
+                            "where productID in " +
+                            "(" +
+                                "select movie_id " +
+                                "from movie_info_fact " +
+                                "where movie_title = ?" +
+                            ")");
+            preparedStatement.setString(1, title);
+
+            //执行sql语句并计时
+            long startTime =  System.currentTimeMillis();//开始计时
+            ResultSet resultSet = preparedStatement.executeQuery();//执行sql
+            long endTime =  System.currentTimeMillis();//结束计时
+            long usedTime = endTime-startTime;//计算耗时(单位为毫秒)
+
+            DataAnswer dataAnswer = new DataAnswer();
+            List<String> data = new ArrayList<>();
+            while(resultSet.next()){
+                String profileName = resultSet.getString("profileName");
+                String score = String.valueOf(resultSet.getDouble("score"));
+                Date date = resultSet.getDate("time");
+                String year = String.valueOf(date.getYear() + 1900);
+                String month = String.valueOf(date.getMonth() + 1);
+                String day = String.valueOf(date.getDate());
+                String summary = resultSet.getString("summary");
+                StringBuffer comment = new StringBuffer();
+                comment.append(profileName).append(" -- ").append(year).append("/").append(month).append("/").append(day).append(" -- ").append(score).append(" -- ").append(summary);
+                data.add(String.valueOf(comment));
+            }
+            dataAnswer.setData(data);
+            dataAnswer.setTime(usedTime);
+            return dataAnswer;
+        }
+        switch (answer) {
+            case "count":  // * 电影有多少同名电影
                 preparedStatement = connection.prepareStatement(
                         "select count(*) from movie_info_fact where movie_title = ?");
-            }
-            else if(answer.equals("actor")){ // * 电影有哪些演员
+                break;
+            case "actor":  // * 电影有哪些演员
                 preparedStatement = connection.prepareStatement(
-                        "select actor " +
+                        "select distinct actor " +
                                 "from movie_info_fact natural join movie_actor " +
                                 "where movie_title = ?");
-            }
-            else if (answer.equals("director")){ // * 电影有哪些导演
+                break;
+            case "director":  // * 电影有哪些导演
                 preparedStatement = connection.prepareStatement(
-                        "select director_name " +
+                        "select distinct director_name " +
                                 "from movie_info_fact natural join movie_director " +
                                 "where movie_title = ?");
-            }
-            else if (answer.equals("type")){ // * 电影是什么类型的
+                break;
+            case "type":  // * 电影是什么类型的
                 preparedStatement = connection.prepareStatement(
-                        "select type " +
+                        "select distinct type " +
                                 "from movie_info_fact natural join movie_type " +
                                 "where movie_title = ?");
-            }
-            else if (answer.equals("version")){ // * 电影是有哪些版本
+                break;
+            case "version":  // * 电影是有哪些版本
                 preparedStatement = connection.prepareStatement(
-                        "select version " +
+                        "select distinct version " +
                                 "from movie_info_fact natural join movie_version " +
                                 "where movie_title = ?");
-            }
-            else {// default情况
+                break;
+            default: // default情况
                 DataAnswer dataAnswer = new DataAnswer();
                 dataAnswer.setTime((long) 0);
                 dataAnswer.setData(new ArrayList<>());
                 return dataAnswer;
-            }
-            preparedStatement.setString(1, title);
         }
+        preparedStatement.setString(1, title);
+
 
         //执行sql语句并计时
         long startTime =  System.currentTimeMillis();//开始计时

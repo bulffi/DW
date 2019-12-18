@@ -31,6 +31,8 @@ public class MySQLMainHandler {
 
     @Autowired
     Query6 query6;
+    @Autowired
+    Query7 query7;
 
     @PostMapping("/MySQL/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery) throws SQLException {
@@ -71,6 +73,13 @@ public class MySQLMainHandler {
                         return query6.getDataAnswer(specificQuery);
                     }else {
                         return query6.getTestAnswer(specificQuery);
+                    }
+                }
+                case "7":{
+                    if(specificQuery.getAnswerType().equals("data")){
+                        return query7.getDataAnswer(specificQuery);
+                    }else {
+                        return query7.getTestAnswer(specificQuery);
                     }
                 }
             }
