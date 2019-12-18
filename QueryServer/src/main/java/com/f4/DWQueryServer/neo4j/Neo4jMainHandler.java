@@ -87,7 +87,7 @@ public class Neo4jMainHandler {
     }
     @PostMapping("/Neo4j/general/collaboration")
     public Object handleCollaborationQuery(@RequestBody CollaborateQuery collaborateQuery){
-        return new TestAnswer();
+        return query_5.getDataAnswer(collaborateQuery);
     }
     @PostMapping("/Neo4j/general/similarUser")
     public Object handleSimilarUserQuery(@RequestBody ClientQuery clientQuery){
