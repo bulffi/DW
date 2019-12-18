@@ -71,9 +71,16 @@ public class MySQLLoaderOptimize {
 //        res.next();
 //        System.out.println(res.getInt(1));
 
-        addToMovieReviewByBatch();
+//        addToMovieReviewByBatch();
 //        addToMovieReviewByBatch();
 //        initiate_date();
+        addIndex();
+    }
+
+    //添加索引
+    public static void addIndex() throws SQLException {
+        pStmt = con.prepareStatement("alter table movie_review add index (score)");
+        pStmt.execute();
     }
 
     //将movieInfo一个一个地添加到数据库

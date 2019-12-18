@@ -23,7 +23,7 @@ import java.util.List;
  * @Author: <a href="abc@qq.com">abc</a>
  */
 @Service
-public class Query1 {
+public class Query1 {//按时间查询
     @Autowired
     Connection connection;
 

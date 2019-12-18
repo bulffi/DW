@@ -58,7 +58,13 @@ public class Query6 { //按电影类别查询
 //            on temp2.movie_id = temp3.movie_id;
         //for循环拼接sql语句
         StringBuffer sql = new StringBuffer();
-        sql.append("select movie_title from movie_info_fact where movie_id in (select temp0.movie_id from ");
+        if(answer.equals("title")){
+            sql.append("select movie_title from movie_info_fact where movie_id in (select temp0.movie_id from ");
+        }
+        else{
+            sql.append("select count(*) from movie_info_fact where movie_id in (select temp0.movie_id from ");
+        }
+
         for(int i = 0; i < num_type; i++){
             if(i != 0) {//不是第一个
                 sql.append("inner join ");
