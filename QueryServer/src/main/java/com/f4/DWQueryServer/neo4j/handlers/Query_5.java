@@ -42,7 +42,7 @@ public class Query_5 {
         return queryString;
     }
     @Data
-    private static class Pair{
+    static class Pair{
         String name_1;
         String name_2;
         int num;

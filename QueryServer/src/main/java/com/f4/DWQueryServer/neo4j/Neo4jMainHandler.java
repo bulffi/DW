@@ -34,6 +34,8 @@ public class Neo4jMainHandler {
     Query_6 query_6;
     @Autowired
     Query_7 query_7;
+    @Autowired
+    Query_8 query_8;
     @PostMapping("/Neo4j/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery){
         if(specificQuery.getIdList().size() == 1){
@@ -91,6 +93,6 @@ public class Neo4jMainHandler {
     }
     @PostMapping("/Neo4j/general/similarUser")
     public Object handleSimilarUserQuery(@RequestBody ClientQuery clientQuery){
-        return new DataAnswer();
+        return query_8.getDataAnswer(clientQuery);
     }
 }
