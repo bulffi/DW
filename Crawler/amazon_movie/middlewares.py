@@ -109,55 +109,12 @@ class ProxyMiddleware(object):
     # overwrite process request
     def process_request(self, request, spider):
         # 设置代理服务器域名和端口，注意，具体的域名要依据据开通账号时分配的而定
-        # print('I am proxy')
         request.meta['proxy'] = "http-proxy-t3.dobel.cn:9180"
 
         # 设置账号密码
         proxy_user_pass = "QAZXSW7EBELQS70:sgThtJkQ"
         # setup basic authentication for the proxy
-        # For python3
         encoded_user_pass = "Basic " + base64.urlsafe_b64encode(bytes((proxy_user_pass), "ascii")).decode("utf8")
-        # For python2
-        # encoded_user_pass = "Basic " + base64.b64encode(proxy_user_pass)
 
         request.headers['Proxy-Authorization'] = encoded_user_pass
         request.meta['max_retry_times'] = 10
-        # # 设置账号密码
-        # # proxy_user_pass = "forward.xdaili.cn:80"
-        # ip = "forward.xdaili.cn"
-        # port = "80"
-        #
-        # ip_port = ip + ":" + port
-        # timestamp = str(int(time.time()))
-        # orderno = 'ZF20199281982Csx0WT'
-        # secret = 'a7ca1973e06d43fabeace9a746f61226'
-        # string = "orderno=" + orderno + "," + "secret=" + secret + "," + "timestamp=" + timestamp
-        # string = string.encode()
-        # md5_string = hashlib.md5(string).hexdigest()
-        # sign = md5_string.upper()
-        # # print(sign)
-        # auth = "sign=" + sign + "&" + "orderno=" + orderno + "&" + "timestamp=" + timestamp
-        # # setup basic authentication for the proxy
-        # # For python3
-        # # encoded_user_pass = "Basic " + base64.urlsafe_b64encode(bytes((proxy_user_pass), "ascii")).decode("utf8")
-        # # For python2
-        # # encoded_user_pass = "Basic " + base64.b64encode(proxy_user_pass)
-
-        # request.meta['proxy'] = "https://" + ip_port
-        # request.headers['Proxy-Authorization'] = auth
-
-        # proxy = {"http": "http://" + ip_port, "https": "https://" + ip_port}
-        # headers = {"Proxy-Authorization": auth,
-        #            "User-Agent": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.75 Safari/537.36"}
-        # r = requests.get("http://2000019.ip138.com", headers=headers, proxies=proxy, verify=False,
-        #                  allow_redirects=False)
-        # r.encoding = 'utf8'
-        # print(r.status_code)
-        # print(r.text)
-        # if r.status_code == 302 or r.status_code == 301:
-        #     loc = r.headers['Location']
-        #     print(loc)
-        #     r = requests.get(loc, headers=headers, proxies=proxy, verify=False, allow_redirects=False)
-        #     r.encoding = 'utf8'
-        #     print(r.status_code)
-        #     print(r.text)

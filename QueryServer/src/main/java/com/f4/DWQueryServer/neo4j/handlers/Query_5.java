@@ -28,27 +28,27 @@ public class Query_5 {
         switch (query.getType()){
             case 1:{
                 queryString = "match (a1:ACTOR)-[:ACT_IN]->(m:MOVIE)<-[:ACT_IN]-(a2:ACTOR) " +
-                        "with a1,a2,count(m) as num where num > " + query.getThreshold() + " return a1 as name1,a2 as name2,num order by num desc";
+                        "with a1,a2,count(m) as num where num > " + query.getThreshold() + " return a1.name as name1,a2.name as name2,num order by num desc";
             }break;
             case 2:{
                 queryString  = "match (a:ACTOR)-[:ACT_IN]->(m:MOVIE)<-[:DIRECTED]-(d:DIRECTOR) " +
-                        "with a,d,count(m) as num where num >" + query.getThreshold() + "return a as name1,d as name2,num order by num desc";
+                        "with a,d,count(m) as num where num >" + query.getThreshold() + " return a.name as name1,d.name as name2,num order by num desc";
             }break;
             case 3:{
                 queryString = "match (d1:DIRECTOR)-[:DIRECTED]->(m:MOVIE)<-[:DIRECTED]-(d2:DIRECTOR) " +
-                        "with d1,d2,count(m) as num where num >" +query.getThreshold() +" return d1 as name1,d2 as name2,num order by num desc";
+                        "with d1,d2,count(m) as num where num >" +query.getThreshold() +" return d1.name as name1,d2.name as name2,num order by num desc";
             }
         }
         return queryString;
     }
     @Data
-    private static class Pair{
+    static class Pair{
         String name_1;
         String name_2;
         int num;
     }
 
-    DataAnswer getDataAnswer(CollaborateQuery query){
+    public DataAnswer getDataAnswer(CollaborateQuery query){
         String queryTemplate = getQueryString(query);
         List<String> answer = new ArrayList<>();
         Set<Pair> pairs = new HashSet<>();

@@ -57,9 +57,26 @@ public class Query_7 {
         return queryTemplate;
     }
 
+    private String getUserCommentQueryString(SpecificQuery query){
+        String userName = query.getComment().getUser_name();
+        double from = query.getComment().getScore_from();
+        double to = query.getComment().getScore_to();
+        String userID = query.getComment().getUser_id();
+        String queryTemplate = "";
+        if ("title".equals(query.getAnswer())) {
+            queryTemplate = "match(u:USER{profile_name:'" + userName + "'})-[g:GRADE]->(m:MOVIE) where g.point >= " + from + " and g.point <= " + to + " return m.name as name";
+        }
+
+        return queryTemplate;
+    }
+
     public DataAnswer getDataAnswer(SpecificQuery query){
         String queryTemplate = "";
-        queryTemplate = getQueryString(query);
+        if(query.getComment().getUser_name() != null){
+            queryTemplate = getUserCommentQueryString(query);
+        }else {
+            queryTemplate = getQueryString(query);
+        }
         return QueryHelper.getDataAndTime(queryTemplate,driver);
     }
 
