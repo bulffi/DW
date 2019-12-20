@@ -3,6 +3,7 @@ package com.f4.DWQueryServer.mysql.handlers;
 import com.f4.DWQueryServer.entity.answer.DataAnswer;
 import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
+import com.f4.DWQueryServer.mysql.MySQLMainHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -43,107 +44,165 @@ public class Query1 {//按时间查询
 
         //初始化查询语句
         if (timeFrom.getYear() == 0) { //按星期查询
-            if(answer.equals("count")) {//星期 * 上映电影的数量
-                preparedStatement = connection.prepareStatement(
-                        "select count(*) from movie_info_fact where weekday = ?");
-            }
-            else if(answer.equals("title")){ //星期 * 上映电影的名字
-                preparedStatement = connection.prepareStatement(
-                        "select movie_title from movie_info_fact where weekday = ?");
-            }
-            else if(answer.equals("id")){ //星期 * 上映电影的id
-                preparedStatement = connection.prepareStatement(
-                        "select movie_id from movie_info_fact where weekday = ?");
-            }
-            else { //default情况
-                DataAnswer dataAnswer = new DataAnswer();
-                dataAnswer.setTime((long) 0);
-                dataAnswer.setData(new ArrayList<>());
-                return dataAnswer;
+            switch (answer) {
+                case "count": //星期 * 上映电影的数量
+                    preparedStatement = connection.prepareStatement(
+                            "select count(*) from movie_info_fact where weekday = ?");
+                    break;
+                case "title":  //星期 * 上映电影的名字
+                    preparedStatement = connection.prepareStatement(
+                            "select movie_title from movie_info_fact where weekday = ?");
+                    break;
+                case "id":  //星期 * 上映电影的id
+                    preparedStatement = connection.prepareStatement(
+                            "select movie_id from movie_info_fact where weekday = ?");
+                    break;
+                default:  //default情况
+                    DataAnswer dataAnswer = new DataAnswer();
+                    dataAnswer.setTime((long) 0);
+                    dataAnswer.setData(new ArrayList<>());
+                    return dataAnswer;
             }
             preparedStatement.setInt(1, day);
         }
         else { //按年份查询
             if(month == 0 && quarter == 0) {//只按年份查询
-                if(answer.equals("count")) {// * 年上映电影的数量
-                    preparedStatement = connection.prepareStatement(
-                            "select count(*) from movie_info_fact where year = ?");
-                }
-                else if(answer.equals("title")){ // * 年上映电影的名字
-                    preparedStatement = connection.prepareStatement(
-                            "select movie_title from movie_info_fact where year = ?");
-                }
-                else if(answer.equals("id")){ // * 年上映电影的id
-                    preparedStatement = connection.prepareStatement(
-                            "select movie_id from movie_info_fact where year = ?");
-                }
-                else { //default情况
-                    DataAnswer dataAnswer = new DataAnswer();
-                    dataAnswer.setTime((long) 0);
-                    dataAnswer.setData(new ArrayList<>());
-                    return dataAnswer;
+                switch (answer) {
+                    case "count": // * 年上映电影的数量
+                        preparedStatement = connection.prepareStatement(
+                                "select count(*) from movie_info_fact where year = ?");
+                        break;
+                    case "title":  // * 年上映电影的名字
+                        preparedStatement = connection.prepareStatement(
+                                "select movie_title from movie_info_fact where year = ?");
+                        break;
+                    case "id":  // * 年上映电影的id
+                        preparedStatement = connection.prepareStatement(
+                                "select movie_id from movie_info_fact where year = ?");
+                        break;
+                    default:  //default情况
+                        DataAnswer dataAnswer = new DataAnswer();
+                        dataAnswer.setTime((long) 0);
+                        dataAnswer.setData(new ArrayList<>());
+                        return dataAnswer;
                 }
                 preparedStatement.setInt(1, year);
             }
             else { //不只按年份查找
                 if(month != 0) { // 按 * 年 * 月查询
-                    if(answer.equals("count")) { //* 年 * 月上映电影的数量
-                        preparedStatement = connection.prepareStatement(
-                                "select count(*) " +
-                                        "from movie_info_fact " +
-                                        "natural join movie_release_date " +
-                                        "where year = ? and month = ?");
-                    }
-                    else if(answer.equals("title")) { // * 年 * 月上映电影的名字
-                        preparedStatement = connection.prepareStatement(
-                                "select movie_title " +
-                                        "from movie_info_fact " +
-                                        "natural join movie_release_date " +
-                                        "where year = ? and month = ?");
-                    }
-                    else if (answer.equals("id")) { // * 年 * 月上映电影的id
-                        preparedStatement = connection.prepareStatement(
-                                "select movie_id " +
-                                        "from movie_info_fact " +
-                                        "natural join movie_release_date " +
-                                        "where year = ? and month = ?");
-                    }
-                    else { //default情况
-                        DataAnswer dataAnswer = new DataAnswer();
-                        dataAnswer.setTime((long) 0);
-                        dataAnswer.setData(new ArrayList<>());
-                        return dataAnswer;
+                    switch (answer) {
+                        case "count":  //* 年 * 月上映电影的数量
+                            if(!MySQLMainHandler.optimize) {//不优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select count(*) " +
+                                                "from movie_info_fact " +
+                                                "natural join movie_release_date " +
+                                                "where year = ? and month = ?");
+                            }
+                            else{//优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select count(*) " +
+                                                "from prejoin_movie_date " +
+                                                "where (year, month) " +
+                                                "= (?, ?)");
+                            }
+                            break;
+                        case "title":  // * 年 * 月上映电影的名字
+                            if(!MySQLMainHandler.optimize) {//不优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_title " +
+                                                "from movie_info_fact " +
+                                                "natural join movie_release_date " +
+                                                "where year = ? and month = ?");
+                            }
+                            else {//优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_title " +
+                                                "from prejoin_movie_date " +
+                                                "where (year, month) " +
+                                                "= (?, ?)");
+                            }
+                            break;
+                        case "id":  // * 年 * 月上映电影的id
+                            if(!MySQLMainHandler.optimize) {//不优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_id " +
+                                                "from movie_info_fact " +
+                                                "natural join movie_release_date " +
+                                                "where year = ? and month = ?");
+                            }
+                            else {//优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_id " +
+                                                "from prejoin_movie_date " +
+                                                "where (year, month) " +
+                                                "= (?, ?)");
+                            }
+                            break;
+                        default:  //default情况
+                            DataAnswer dataAnswer = new DataAnswer();
+                            dataAnswer.setTime((long) 0);
+                            dataAnswer.setData(new ArrayList<>());
+                            return dataAnswer;
                     }
                     preparedStatement.setInt(1, year);
                     preparedStatement.setInt(2, month);
                 }
                 else { //按 * 年 * 季度查询
-                    if(answer.equals("count")) { //* 年 * 季度上映电影的数量
-                        preparedStatement = connection.prepareStatement(
-                                "select count(*) " +
-                                        "from movie_info_fact " +
-                                        "natural join movie_release_date " +
-                                        "where year = ? and year_quarter = ?");
-                    }
-                    else if(answer.equals("title")) { // * 年 * 季度上映电影的名字
-                        preparedStatement = connection.prepareStatement(
-                                "select movie_title " +
-                                        "from movie_info_fact " +
-                                        "natural join movie_release_date " +
-                                        "where year = ? and year_quarter = ?");
-                    }
-                    else if (answer.equals("id")) { // * 年 * 季度上映电影的id
-                        preparedStatement = connection.prepareStatement(
-                                "select movie_id " +
-                                        "from movie_info_fact " +
-                                        "natural join movie_release_date " +
-                                        "where year = ? and year_quarter = ?");
-                    }
-                    else { //default情况
-                        DataAnswer dataAnswer = new DataAnswer();
-                        dataAnswer.setTime((long) 0);
-                        dataAnswer.setData(new ArrayList<>());
-                        return dataAnswer;
+                    switch (answer) {
+                        case "count":  //* 年 * 季度上映电影的数量
+                            if(!MySQLMainHandler.optimize){//不优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select count(*) " +
+                                                "from movie_info_fact " +
+                                                "natural join movie_release_date " +
+                                                "where year = ? and year_quarter = ?");
+                            }
+                            else {//优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select count(*) " +
+                                                "from prejoin_movie_date " +
+                                                "where (year, year_quarter) " +
+                                                "= (?, ?)");
+                            }
+                            break;
+                        case "title":  // * 年 * 季度上映电影的名字
+                            if(!MySQLMainHandler.optimize) {//不优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_title " +
+                                                "from movie_info_fact " +
+                                                "natural join movie_release_date " +
+                                                "where year = ? and year_quarter = ?");
+                            }
+                            else {//优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_title " +
+                                                "from prejoin_movie_date " +
+                                                "where (year, year_quarter) " +
+                                                "= (?, ?)");
+                            }
+                            break;
+                        case "id":  // * 年 * 季度上映电影的id
+                            if(!MySQLMainHandler.optimize) {//不优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_id " +
+                                                "from movie_info_fact " +
+                                                "natural join movie_release_date " +
+                                                "where year = ? and year_quarter = ?");
+                            }
+                            else {//优化
+                                preparedStatement = connection.prepareStatement(
+                                        "select movie_id " +
+                                                "from prejoin_movie_date " +
+                                                "where (year, year_quarter) " +
+                                                "= (?, ?)");
+                            }
+                            break;
+                        default:  //default情况
+                            DataAnswer dataAnswer = new DataAnswer();
+                            dataAnswer.setTime((long) 0);
+                            dataAnswer.setData(new ArrayList<>());
+                            return dataAnswer;
                     }
                     preparedStatement.setInt(1, year);
                     preparedStatement.setInt(2, quarter);
@@ -159,7 +218,7 @@ public class Query1 {//按时间查询
         long usedTime = endTime-startTime;
 
         DataAnswer dataAnswer = new DataAnswer();
-        List<String> data = new ArrayList<String>();
+        List<String> data = new ArrayList<>();
         while (resultSet.next()){
             if(answer.equals("title") || answer.equals("id"))
                 data.add(resultSet.getString(1));

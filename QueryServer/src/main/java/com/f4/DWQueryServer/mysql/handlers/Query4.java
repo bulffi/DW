@@ -3,6 +3,7 @@ package com.f4.DWQueryServer.mysql.handlers;
 import com.f4.DWQueryServer.entity.answer.DataAnswer;
 import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
+import com.f4.DWQueryServer.mysql.MySQLMainHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -61,25 +62,49 @@ public class Query4 { //按导演查询
 //            on temp2.movie_id = temp3.movie_id;
         //for循环拼接sql语句
         StringBuffer sql = new StringBuffer();
-        sql.append("select movie_title from movie_info_fact where movie_id in (select temp0.movie_id from ");
-        int i = 0;
-        for(; i < num_actors; i++){
-            if(i != 0) {//不是第一个
-                sql.append("inner join ");
+        if(!MySQLMainHandler.optimize) {//不优化
+            sql.append("select movie_title from movie_info_fact where movie_id in (select temp0.movie_id from ");
+            int i = 0;
+            for(; i < num_actors; i++){
+                if(i != 0) {//不是第一个
+                    sql.append("inner join ");
+                }
+                sql.append("(select movie_id from movie_actor where actor = \"" + actors.get(i) + "\") as temp" + i + ' ');
+                if(i != 0) {//不是第一个
+                    sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
+                }
             }
-            sql.append("(select movie_id from movie_actor where actor = \"" + actors.get(i) + "\") as temp" + i + ' ');
-            if(i != 0) {//不是第一个
-                sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
+            if(main_actor.equals("") && num_actors != 0){//没有主演但有演员列表
+                sql.append(')');
+            }
+            else if (!main_actor.equals("") && num_actors != 0){ //既有演员列表又有主演
+                sql.append("inner join (select movie_id from movie_actor where is_lead = 1 and actor = \"" + main_actor + "\") as temp" + i + " on temp" + (i-1) + ".movie_id = temp" + i + ".movie_id)");
+            }
+            else { //没有演员列表但又主演
+                sql.append("(select movie_id from movie_actor where is_lead = 1 and actor = \"" + main_actor + "\") as temp0)");
             }
         }
-        if(main_actor.equals("") && num_actors != 0){//没有主演但有演员列表
-            sql.append(')');
-        }
-        else if (!main_actor.equals("") && num_actors != 0){ //既有演员列表又有主演
-            sql.append("inner join (select movie_id from movie_actor where is_lead = 1 and actor = \"" + main_actor + "\") as temp" + i + " on temp" + (i-1) + ".movie_id = temp" + i + ".movie_id)");
-        }
-        else { //没有演员列表但又主演
-            sql.append("(select movie_id from movie_actor where is_lead = 1 and actor = \"" + main_actor + "\") as temp0)");
+        else {//优化
+            sql.append("select temp0.movie_title from ");
+            int i = 0;
+            for(; i < num_actors; i++){
+                if(i != 0) {//不是第一个
+                    sql.append("inner join ");
+                }
+                sql.append("(select movie_id, movie_title from prejoin_movie_actor where actor = \"" + actors.get(i) + "\") as temp" + i + ' ');
+                if(i != 0) {//不是第一个
+                    sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
+                }
+            }
+            if(main_actor.equals("") && num_actors != 0){//没有主演但有演员列表
+                //sql.append(')');
+            }
+            else if (!main_actor.equals("") && num_actors != 0){ //既有演员列表又有主演
+                sql.append("inner join (select movie_id, movie_title from prejoin_movie_actor where is_lead = 1 and actor = \"" + main_actor + "\") as temp" + i + " on temp" + (i-1) + ".movie_id = temp" + i + ".movie_id");
+            }
+            else { //没有演员列表但又主演
+                sql.append("(select movie_id, movie_title from prejoin_movie_actor where is_lead = 1 and actor = \"" + main_actor + "\") as temp0");
+            }
         }
 
         System.out.println(sql);

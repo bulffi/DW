@@ -21,7 +21,7 @@ public class MySQLLoaderOptimize {
     private static ResultSet res;//声明结果 ResultSet 对象
 
     //建立返回值为 Connection 的方法，host=1表示localhost，host=2表示阿里云主机
-    public Connection getConnection(int host) {
+    public static Connection getConnection(int host) {
 
         //代码块（1）：加载数据库驱动类
         try {

@@ -3,6 +3,7 @@ package com.f4.DWQueryServer.mysql.handlers;
 import com.f4.DWQueryServer.entity.answer.DataAnswer;
 import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
+import com.f4.DWQueryServer.mysql.MySQLMainHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -58,17 +59,31 @@ public class Query3 { //按导演查询
 //            on temp2.movie_id = temp3.movie_id;
         //for循环拼接sql语句
         StringBuffer sql = new StringBuffer();
-        sql.append("select movie_title from movie_info_fact where movie_id in (select temp0.movie_id from ");
-        for(int i = 0; i < num_director; i++){
-            if(i != 0) {//不是第一个
-                sql.append("inner join ");
+        if(!MySQLMainHandler.optimize) {//不优化
+            sql.append("select movie_title from movie_info_fact where movie_id in (select temp0.movie_id from ");
+            for (int i = 0; i < num_director; i++) {
+                if (i != 0) {//不是第一个
+                    sql.append("inner join ");
+                }
+                sql.append("(select movie_id from movie_director where director_name = \"" + director_names.get(i) + "\") as temp" + i + ' ');
+                if (i != 0) {//不是第一个
+                    sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
+                }
+                if (i == num_director - 1) {//最后一个
+                    sql.append(')');
+                }
             }
-            sql.append("(select movie_id from movie_director where director_name = \"" + director_names.get(i) + "\") as temp" + i + ' ');
-            if(i != 0) {//不是第一个
-                sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
-            }
-            if(i == num_director - 1){//最后一个
-                sql.append(')');
+        }
+        else {//优化
+            sql.append("select temp0.movie_title from ");
+            for(int i = 0; i < num_director; i++){
+                if (i != 0) {//不是第一个
+                    sql.append("inner join ");
+                }
+                sql.append("(select movie_id, movie_title from prejoin_movie_director where director_name = \"" + director_names.get(i) + "\") as temp" + i + ' ');
+                if (i != 0) {//不是第一个
+                    sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
+                }
             }
         }
 

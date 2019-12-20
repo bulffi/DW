@@ -3,6 +3,7 @@ package com.f4.DWQueryServer.mysql.handlers;
 import com.f4.DWQueryServer.entity.answer.DataAnswer;
 import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
+import com.f4.DWQueryServer.mysql.MySQLMainHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +26,7 @@ public class Query7 { //按用户评价进行查询，默认为评分
 
     public DataAnswer getDataAnswer(SpecificQuery query) throws SQLException {
         //要用的数据
+        String userID = query.getComment().getUser_id();
         double score_from = query.getComment().getScore_from();
         double score_to = query.getComment().getScore_to();
         String answer = query.getAnswer();
@@ -33,6 +35,40 @@ public class Query7 { //按用户评价进行查询，默认为评分
         DataAnswer dataAnswer = new DataAnswer();
         List<String> data = new ArrayList<>();
 
+        if(!userID.isEmpty()){//某用户喜欢哪些电影
+            PreparedStatement preparedStatement;
+            if(!MySQLMainHandler.optimize){//不优化
+                preparedStatement = connection.prepareStatement(
+                        "select movie_title " +
+                                "from movie_info_fact " +
+                                "where movie_id in " +
+                                "(" +
+                                "select productID " +
+                                "from movie_review " +
+                                "where userID = ? and score >= 4" +
+                                ")");
+            }
+            else {//优化
+                preparedStatement = connection.prepareStatement(
+                        "select movie_title " +
+                                "from prejoin_movie_review " +
+                                "where userID = ? and score >= 4");
+            }
+            preparedStatement.setString(1, userID);
+
+            //执行sql语句并计时
+            long startTime =  System.currentTimeMillis();//开始计时
+            ResultSet resultSet = preparedStatement.executeQuery();//执行sql
+            long endTime =  System.currentTimeMillis();//结束计时
+            long usedTime = endTime-startTime;//计算耗时(单位为毫秒)
+
+            while (resultSet.next()){
+                data.add(resultSet.getString(1));
+            }
+            dataAnswer.setData(data);
+            dataAnswer.setTime(usedTime);
+            return dataAnswer;
+        }
         if(score_from > score_to){ //分数段无效
             data.add("请输入合法的分数段");
             dataAnswer.setData(data);
@@ -71,25 +107,25 @@ public class Query7 { //按用户评价进行查询，默认为评分
             }
         }
         else{//查询平均评分在某分数段的电影有哪些
-//            select movie_title
-//            from movie_info_fact
-//            where movie_id in
-//            (
-//                    select productID
-//                    from movie_review
-//                    group by productID
-//                    having avg(score) > 4
-//            );
-            PreparedStatement preparedStatement = connection.prepareStatement(
-                    "select movie_title " +
-                            "from movie_info_fact " +
-                            "where movie_id in " +
-                            "(" +
+            PreparedStatement preparedStatement;
+            if(!MySQLMainHandler.optimize){//不优化
+                preparedStatement = connection.prepareStatement(
+                        "select movie_title " +
+                                "from movie_info_fact " +
+                                "where movie_id in " +
+                                "(" +
                                 "select productID " +
                                 "from movie_review " +
                                 "group by productID " +
                                 "having avg(score) >= ? and avg(score) <= ?" +
-                            ")");
+                                ")");
+            }
+            else {//优化
+                preparedStatement = connection.prepareStatement(
+                        "select movie_title " +
+                                "from precal_movie_avg_score " +
+                                "where avg_score >= ? and avg_score <= ?");
+            }
             preparedStatement.setDouble(1, score_from);
             preparedStatement.setDouble(2, score_to);
 

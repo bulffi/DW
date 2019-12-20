@@ -3,6 +3,8 @@ package com.f4.DWQueryServer.mysql.handlers;
 import com.f4.DWQueryServer.entity.answer.DataAnswer;
 import com.f4.DWQueryServer.entity.answer.TestAnswer;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
+import com.f4.DWQueryServer.mysql.MySQLMainHandler;
+import com.mysql.cj.protocol.a.MysqlBinaryValueDecoder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,10 +31,18 @@ public class Query2 { //按电影名称查询
         PreparedStatement preparedStatement;//声明查询语句
 
         if(answer.equals("date")){ //* 电影上映日期是多少
-            preparedStatement = connection.prepareStatement(
-                    "select year, month, date " +
-                            "from movie_info_fact natural join movie_release_date " +
-                            "where movie_title = ?");
+            if(!MySQLMainHandler.optimize){//不优化
+                preparedStatement = connection.prepareStatement(
+                        "select year, month, date " +
+                                "from movie_info_fact natural join movie_release_date " +
+                                "where movie_title = ?");
+            }
+            else {//优化
+                preparedStatement = connection.prepareStatement(
+                        "select year, month, date " +
+                                "from prejoin_movie_date " +
+                                "where movie_title = ?");
+            }
             preparedStatement.setString(1, title);
 
             //执行sql语句并计时
@@ -103,28 +113,79 @@ public class Query2 { //按电影名称查询
                         "select count(*) from movie_info_fact where movie_title = ?");
                 break;
             case "actor":  // * 电影有哪些演员
-                preparedStatement = connection.prepareStatement(
-                        "select distinct actor " +
-                                "from movie_info_fact natural join movie_actor " +
-                                "where movie_title = ?");
+                if(!MySQLMainHandler.optimize){//不优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct actor " +
+                                    "from movie_info_fact natural join movie_actor " +
+                                    "where movie_title = ?");
+                }
+                else {//优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct actor " +
+                                    "from prejoin_movie_actor " +
+                                    "where movie_title = ?");
+                }
                 break;
             case "director":  // * 电影有哪些导演
-                preparedStatement = connection.prepareStatement(
-                        "select distinct director_name " +
-                                "from movie_info_fact natural join movie_director " +
-                                "where movie_title = ?");
+                if(!MySQLMainHandler.optimize) {//不优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct director_name " +
+                                    "from movie_info_fact natural join movie_director " +
+                                    "where movie_title = ?");
+                }
+                else {//优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct director_name " +
+                                    "from prejoin_movie_director " +
+                                    "where movie_title = ?");
+                }
                 break;
             case "type":  // * 电影是什么类型的
-                preparedStatement = connection.prepareStatement(
-                        "select distinct type " +
-                                "from movie_info_fact natural join movie_type " +
-                                "where movie_title = ?");
+                if(!MySQLMainHandler.optimize) {//不优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct type " +
+                                    "from movie_info_fact natural join movie_type " +
+                                    "where movie_title = ?");
+                }
+                else {//优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct type " +
+                                    "from prejoin_movie_type " +
+                                    "where movie_title = ?");
+                }
                 break;
             case "version":  // * 电影是有哪些版本
-                preparedStatement = connection.prepareStatement(
-                        "select distinct version " +
-                                "from movie_info_fact natural join movie_version " +
-                                "where movie_title = ?");
+                if(!MySQLMainHandler.optimize) {//不优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct version " +
+                                    "from movie_info_fact natural join movie_version " +
+                                    "where movie_title = ?");
+                }
+                else {//优化
+                    preparedStatement = connection.prepareStatement(
+                            "select distinct version " +
+                                    "from prejoin_movie_version " +
+                                    "where movie_title = ?");
+                }
+                break;
+            case "score":
+                if(!MySQLMainHandler.optimize){//不优化
+                    preparedStatement = connection.prepareStatement(
+                            "select avg(score) " +
+                                    "from movie_review " +
+                                    "where productID in " +
+                                    "(" +
+                                    "select movie_id " +
+                                    "from movie_info_fact " +
+                                    "where movie_title = ?" +
+                                    ")");
+                }
+                else {//优化
+                    preparedStatement = connection.prepareStatement(
+                            "select avg_score " +
+                                    "from precal_movie_avg_score " +
+                                    "where movie_title = ?");
+                }
                 break;
             default: // default情况
                 DataAnswer dataAnswer = new DataAnswer();
@@ -147,6 +208,8 @@ public class Query2 { //按电影名称查询
         while (resultSet.next()){
             if(answer.equals("count"))
                 data.add(String.valueOf(resultSet.getInt(1)));
+            else if(answer.equals("score"))
+                data.add(String.valueOf(resultSet.getDouble(1)));
             else
                 data.add(resultSet.getString(1));
         }

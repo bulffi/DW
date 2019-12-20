@@ -20,6 +20,8 @@ import java.sql.SQLException;
  **/
 @RestController
 public class MySQLMainHandler {
+    public static boolean optimize = true;
+
     @Autowired
     Query1 query1;
     @Autowired
@@ -28,11 +30,13 @@ public class MySQLMainHandler {
     Query3 query3;
     @Autowired
     Query4 query4;
-
     @Autowired
     Query6 query6;
     @Autowired
     Query7 query7;
+
+    @Autowired
+    Query5 query5;
 
     @PostMapping("/MySQL/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery) throws SQLException {
@@ -88,7 +92,8 @@ public class MySQLMainHandler {
         return new DataAnswer();
     }
     @PostMapping("/MySQL/general/collaboration")
-    public Object handleCollaborationQuery(@RequestBody CollaborateQuery collaborateQuery){
-        return new TestAnswer();
+    public Object handleCollaborationQuery(@RequestBody CollaborateQuery collaborateQuery) throws SQLException {
+
+        return query5.getDataAnswer(collaborateQuery);
     }
 }
