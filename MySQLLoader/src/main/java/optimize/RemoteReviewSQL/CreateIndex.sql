@@ -1,1 +1,0 @@
-create index id_index on movie_amazon_id(amazon_id);

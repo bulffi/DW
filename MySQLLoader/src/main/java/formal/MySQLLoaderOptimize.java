@@ -1,17 +1,13 @@
-package optimize;
+package formal;
 
 import com.alibaba.fastjson.JSON;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.*;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
-import java.util.Scanner;
 
 public class MySQLLoaderOptimize {
     private static Connection con; //声明 Connection 对象

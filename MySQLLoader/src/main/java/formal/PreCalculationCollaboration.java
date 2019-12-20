@@ -1,4 +1,4 @@
-package optimize.Optimize;
+package formal;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ public class PreCalculationCollaboration {
 
 
     public static void main(String[] args) throws SQLException {
-        con = optimize.MySQLLoaderOptimize.getConnection(2);
+        con = formal.MySQLLoaderOptimize.getConnection(2);
         //preCalculateActorCollaboration();
         //preCalculateDirectorCollaboration();
     }
