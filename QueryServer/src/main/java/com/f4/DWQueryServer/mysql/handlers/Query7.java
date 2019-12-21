@@ -26,7 +26,7 @@ public class Query7 { //按用户评价进行查询，默认为评分
 
     public DataAnswer getDataAnswer(SpecificQuery query) throws SQLException {
         //要用的数据
-        String userID = query.getComment().getUser_id();
+        String userID = query.getComment().getUser_name();
         double score_from = query.getComment().getScore_from();
         double score_to = query.getComment().getScore_to();
         String answer = query.getAnswer();
@@ -35,7 +35,13 @@ public class Query7 { //按用户评价进行查询，默认为评分
         DataAnswer dataAnswer = new DataAnswer();
         List<String> data = new ArrayList<>();
 
-        if(!userID.isEmpty()){//某用户喜欢哪些电影
+        if(score_from > score_to){ //分数段无效
+            data.add("请输入合法的分数段");
+            dataAnswer.setData(data);
+            dataAnswer.setTime(Long.valueOf(0));
+            return dataAnswer;
+        }
+        if(userID != null && !userID.equals("")){//某用户喜欢哪些电影
             PreparedStatement preparedStatement;
             if(!MySQLMainHandler.optimize){//不优化
                 preparedStatement = connection.prepareStatement(
@@ -45,16 +51,18 @@ public class Query7 { //按用户评价进行查询，默认为评分
                                 "(" +
                                 "select productID " +
                                 "from movie_review " +
-                                "where userID = ? and score >= 4" +
+                                "where userID = ? and score >= ? and score <= ?" +
                                 ")");
             }
             else {//优化
                 preparedStatement = connection.prepareStatement(
                         "select movie_title " +
                                 "from prejoin_movie_review " +
-                                "where userID = ? and score >= 4");
+                                "where profileName = ? and score >= ? and score <= ?");
             }
             preparedStatement.setString(1, userID);
+            preparedStatement.setDouble(2, score_from);
+            preparedStatement.setDouble(3, score_to);
 
             //执行sql语句并计时
             long startTime =  System.currentTimeMillis();//开始计时
@@ -69,12 +77,7 @@ public class Query7 { //按用户评价进行查询，默认为评分
             dataAnswer.setTime(usedTime);
             return dataAnswer;
         }
-        if(score_from > score_to){ //分数段无效
-            data.add("请输入合法的分数段");
-            dataAnswer.setData(data);
-            dataAnswer.setTime(Long.valueOf(0));
-            return dataAnswer;
-        }
+
 
         long usedTime;
         if(answer.equals("comment")){//查询某分数段的评论
