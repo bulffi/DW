@@ -40,7 +40,7 @@ public class MySQLMainHandler {
 
     @PostMapping("/MySQL/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery) throws SQLException {
-        System.out.println(specificQuery.getTime_from().getDay_of_month());
+        // System.out.println(specificQuery.getTime_from().getDay_of_month());
         if(specificQuery.getIdList().size() == 1) { //IdList不为空
             String queryID = specificQuery.getIdList().get(0);
             switch (queryID) { //目前只支持一个queryID的查询

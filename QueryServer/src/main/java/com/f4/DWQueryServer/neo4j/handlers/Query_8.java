@@ -23,9 +23,7 @@ public class Query_8 {
 
     public DataAnswer getDataAnswer(ClientQuery query) {
         DataAnswer dataAnswer = new DataAnswer();
-        String queryString = "match(m:MOVIE) where m.commentNumber>700  match(u1:USER)-[:LIKES]->(m)<-[:LIKES]-(u2:USER) " +
-                "with u1.profile_name as name1,u2.profile_name as name2 ,count(m) as num where num > " + query.getThreshold() +
-                " return name1, name2 ,num order by num desc ";
+        String queryString = "match(m:MOVIE) where m.commentNumber>900  match(u1:USER)-[:LIKES]->(m)<-[:LIKES]-(u2:USER) return u1.profile_name as name1,u2.profile_name as name2,count(m) order by count(m) desc limit 50 ";
         List<String> answer = new ArrayList<>();
         Set<Query_5.Pair> pairs = new HashSet<>();
         try (Session session = driver.session()) {
@@ -37,7 +35,7 @@ public class Query_8 {
                 Record record = result.next();
                 String name1 = record.get("name1").asString();
                 String name2 = record.get("name2").asString();
-                int num = record.get("num").asInt();
+                int num = record.get("count(m)").asInt();
                 Query_5.Pair pair = new Query_5.Pair();
                 pair.setName_1(name1);
                 pair.setName_2(name2);
