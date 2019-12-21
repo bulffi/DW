@@ -173,42 +173,809 @@ context.write( NullWritable.get(),new Text(JSON.toJSONString(info)));
 	在完成数据的初步处理之后，我们按照要求将数据分别使用关系型数据库、分布式文件系统以及图数据库进行存储，下面分为三个部分分别对这三种存储方案下的存储模型、优化方案、实验数据以及对改种方案所适合的查询类型的判断的描述。
 	\section{关系型数据库}
 	\subsection{概述}
-	\begin{itemize}
-		\item 物理配置是怎么样的？
-		\item 整体的想法是怎么样的？
-	\end{itemize}
+	为提高性能，本实验将数据存储在阿里云的十八万一个月的 MySQL 数据库集群中。该集群采用 MySQL 5.7 而非现在最新版的 MySQL 8.0，故本项目使用的SQL语法会有些许不一样。
 	\subsection{逻辑模型}
+	在从亚马逊网站上爬得电影基本信息以及下载了影评信息之后，我们得到了两个很大的实体，一个是电影基本信息实体，另一个是影评实体，如下图所示：
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{img/MySQL_ER1.png}
+		\caption{两个原始实体}
+		\label{fig:MySQL_ER1}
+	\end{figure}
+	但这两个实体不满足第一范式——原子性，因为它们有很多多值属性以及可再分属性：
 	\begin{itemize}
-		\item ER图
-		\item 必要的说明
-	\end{itemize}
+        \item release\_date: 可再分属性，包含了年月日三个子属性
+        \item directors: 多值属性，一个电影不只由一个导演执导
+        \item actors: 多值属性，一个电影由众多演员出演
+        \item types: 多值属性，一个电影有多种分类
+        \item versions: 多值属性，一个电影有很多个版本
+        \item helpfulness: 可再分属性，包含总评分人数和觉得有用的人数
+    \end{itemize}
+    故需要再给多值属性创建新的实体，并将可拆分属性拆分成多个属性。
+    经过上述范化之后，模型仍有不足，原因如下：如果将上映时间简单的拆分成年月日的话，会存在冗余，因为一年最多只有 366 天，而我们却重复的存储了大量相同的月日信息。故我们只用建一个具有 366 行的 date 实体，并让 movie\_info 与某个人 date 建立联系。
+    优化之后的E-R图如下：
+    \begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{img/MySQL_ER2.png}
+		\caption{优化版E-R图}
+		\label{fig:MySQL_ER2}
+	\end{figure}
+	上图即为最终版逻辑模型，其满足第三范式，较为理想地减少了数据冗余。
 	\subsection{物理模型及其优化方案}
+	\subsubsection{初步模型} \label{mysql:1}
+	初代物理模型一味追求降低数据冗余，直接将逻辑模型转化为数据库表结构，如下所示：
 	\begin{itemize}
-		\item 初步的模型
-		\item 改良的模型
-		\item \begin{itemize}
-			\item 为什么要优化？哪个数据你不满意了？
-			\item 怎么优化的？为什么想这样优化？
-			\item 优化的结果大概是怎么样的？并且指出在实验数据中的体现
-		\end{itemize}
+	    \item 日期表
+	        \begin{lstlisting}
+create table movie_info
+(
+    movie_id integer primary key,
+    movie_title varchar(500),
+    year integer,
+    date_key integer,
+    constraint fact_date_fk foreign key (date_key) references date(date_key)
+);
+	        \end{lstlisting}
+	    \item 电影信息主表
+	        \begin{lstlisting}
+create table date
+(
+    date_key integer primary key,
+    day integer,
+    month integer
+);
+            \end{lstlisting}
+        \item 导演表
+            \begin{lstlisting}
+create table movie_director
+(
+movie_id integer,
+director_name varchar(500),
+primary key (movie_id, director_name),
+constraint director_fk foreign key(movie_id) references movie_info(movie_id)
+);
+            \end{lstlisting}
+        \item 演员表
+            \begin{lstlisting}
+create table movie_actor
+(
+movie_id integer,
+actor_name varchar(500),
+is_lead boolean,
+primary key (movie_id, actor_name),
+constraint actor_fk foreign key(movie_id) references movie_info(movie_id)
+);
+            \end{lstlisting}
+        \item 电影类型表
+            \begin{lstlisting}
+create table movie_type
+(
+movie_id integer,
+type_name varchar(500),
+primary key (movie_id, type_name),
+constraint movie_type_fk foreign key(movie_id) references movie_info(movie_id)
+);
+            \end{lstlisting}
+        \item 电影版本表
+            \begin{lstlisting}
+create table movie_version
+(
+movie_id integer,
+version_name varchar(500),
+primary key (movie_id, version_name),
+constraint movie_version_fk foreign key(movie_id) references movie_info(movie_id)
+);
+            \end{lstlisting}
+        \item 影评表
+            \begin{lstlisting}
+create table movie_review
+(
+productID integer,
+userID varchar(500),
+profileName varchar(500),
+num_reader integer,
+num_helpfulness integer,
+score decimal(2,1),
+time date,
+summary varchar(10000),
+text text,
+primary key (productID, userID, score, time, summary),
+constraint product_movie_fk foreign key (productID) references movie_info(movie_id)
+);
+            \end{lstlisting}
 	\end{itemize}
+    整体表结构如下图所示:
+    \begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{img/MySQL_DB1.png}
+		\caption{初代表结构}
+		\label{fig:MySQL_DB1}
+	\end{figure}
+    \subsubsection{改进模型} \label{mysql:2}
+    初代物理模型虽然尽可能地降低了数据冗余，但是查询效率非常不理想，我们从如下三个方面进行了优化：
+    \begin{enumerate}
+        \item \textbf{预存衍生数据}\\
+        在按照上映时间查询电影时，用户并不总是按照年月日进行查询，而是还会涉及到季度与星期。对于初代物理模型，在执行此类查询时需要根据年月日当场计算季度与星期，这是十分耗时的。故我们决定预先计算好“季度”，“上下半年”与“星期”三个衍生数据，将其存入 movie\_info\_fact 表（即原先的 movie\_info 表）和 movie\_release\_date（即原先的 date 表）中。改进后的表结构如下图所示：
+        \begin{itemize}
+            \item 电影信息事实表
+                \begin{lstlisting}
+create table movie_info_fact
+(
+movie_id integer primary key,
+movie_title varchar(500),
+year integer,
+weekday integer,
+date_key integer,
+constraint fact_date_fk foreign key (date_key) references movie_release_date(date_key)
+);
+                \end{lstlisting}
+            \item 上映日期表
+                \begin{lstlisting}
+create table movie_release_date
+(
+date_key integer primary key,
+date integer,
+month integer,
+year_quarter integer,
+year_half integer
+);
+                \end{lstlisting}
+        \end{itemize}
+        用户时常按照平均评分查询电影。按照初代物理模型，在执行此类查询时需要将评论按 movie\_id 分好组，然后根据该分组中每一个影评的评分，分别计算每一个电影的平均评分，这是十分耗时的。故我们决定预先计算好每一个电影的评分以及评论人数，将其存在一个新表 precal\_movie\_avg\_score 中，其表结构如下所示：
+        \begin{itemize}
+            \item 电影平均评分表
+                \begin{lstlisting}
+create table precal_movie_avg_score
+(
+movie_id integer primary key ,
+movie_title varchar(500),
+avg_score decimal(1000,6),
+num_comment bigint,
+constraint avg_score_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+        \end{itemize}
+        对于“经常合作的演员有哪些”、“经常合作的导演有哪些”和“经常合作的导演和演员有哪些”这三种问题，按照初代物理模型，在每次执行这类查询的时候都必须对所有的演员和导演两两配对计算其一共合作了多少电影。但是导演和演员数量非常多，一共有二十万个，如果要对这二十万人两两配对计算，需要计算四百万次，这是不现实的。对此我们需要预先计算好这些数据，方便以后的查询。但即使是预先计算，四百万次也是个不小的数值，故我们挑选了参演电影书大于等于100的演员和执导电影数大于等于50的导演进行计算，以此简化计算量。计算结果存储在 precal\_collaboration\_actor, precal\_collaboration\_director, precal\_collaboration\_director\_actor 三张表中，表结构如下：
+        \begin{itemize}
+            \item 演员合作关系表
+                \begin{lstlisting}
+create table precal_collaboration_actor
+(
+actor1 varchar(500),
+actor2 varchar(500),
+collaboration_time integer,
+primary key (actor1, actor2),
+constraint precal_collaboration_actor_fk1 foreign key (actor1) references prejoin_movie_actor(actor),
+constraint precal_collaboration_actor_fk2 foreign key (actor2) references prejoin_movie_actor(actor)
+);
+                \end{lstlisting}
+            \item 导演合作关系表
+                \begin{lstlisting}
+create table precal_collaboration_director
+(
+director_name1 varchar(500),
+director_name2 varchar(500),
+collaboration_time integer,
+primary key (director_name1, director_name2),
+constraint precal_collaboration_director_fk1 foreign key (director_name1) references prejoin_movie_director(director_name),
+constraint precal_collaboration_director_fk2 foreign key (director_name2) references prejoin_movie_director(director_name)
+);
+                \end{lstlisting}
+            \item 导演演员合作关系表
+                \begin{lstlisting}
+create table precal_collaboration_director_actor
+(
+director_name varchar(500),
+actor varchar(500),
+collaboration_time integer,
+primary key (director_name, actor),
+constraint precal_collaboration_director_actor_fk1 foreign key (director_name) references prejoin_movie_director(director_name),
+constraint precal_collaboration_director_actor_fk2 foreign key (actor) references prejoin_movie_actor(actor)
+);
+                \end{lstlisting}
+        \end{itemize}
+        \item \textbf{预连接}\\
+        用户有大量的查询是针对时间的。在初代物理模型中，观察 movie\_info 和 date 两张表我们可以发现，对于年份和星期的查询可以直接在 movie\_info 表中完成，但是如果涉及到月份、日期、季度和上下半年，就得把 movie\_info 表与 date 表 join 起来，这是非常耗时的。故我们以部分的数据冗余为代价，将这两张表预先连接起来形成 prejoin\_movie\_date 表，表结构如下所示：
+        \begin{itemize}
+            \item 上映日期预连接表
+                \begin{lstlisting}
+create table prejoin_movie_date
+(
+movie_id integer primary key,
+movie_title varchar(500),
+year integer,
+weekday integer,
+date integer,
+month integer,
+year_quarter integer,
+year_half integer,
+constraint prejoin_movie_date_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+        \end{itemize}
+        用户查询指定电影的版本、类型、导演和演员时，往往是指定一个电影的名字，然而在 movie\_actor, movie\_director, movie\_type, movie\_version 和 movie\_review 这五个表中，我们只存了 movie\_id 而并未存 movie\_title，故要想建立 movie\_title 和 movie\_id 的映射关系，我们在每一次查询时都必须将这五张表与 movie\_info 表连接，这是非常耗时的。故我们决定预先完成这些连接过程，形成了 prejoin\_movie\_actor, prejoin\_movie\_director, prejoin\_movie\_type, prejoin\_movie\_version, prejoin\_movie\_review 五张表，表结构如下所示：
+        \begin{itemize}
+            \item 演员预连接表
+                \begin{lstlisting}
+create table prejoin_movie_actor
+(
+movie_id integer,
+movie_title varchar(500),
+actor varchar(500),
+is_lead boolean,
+primary key (movie_id, actor),
+constraint prejoin_movie_actor_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+            \item 导演预连接表
+                \begin{lstlisting}
+create table prejoin_movie_director
+(
+movie_id integer,
+movie_title varchar(500),
+director_name varchar(500),
+primary key (movie_id, director_name),
+constraint prejoin_movie_director_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+            \item 电影类型预连接表
+                \begin{lstlisting}
+create table prejoin_movie_type
+(
+movie_id integer,
+movie_title varchar(500),
+type varchar(500),
+primary key (movie_id, type),
+constraint prejoin_movie_type_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+            \item 电影版本预连接表
+                \begin{lstlisting}
+create table prejoin_movie_version
+(
+movie_id integer,
+movie_title varchar(500),
+version varchar(500),
+primary key (movie_id, version),
+constraint prejoin_movie_version_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+            \item 影评预连接表
+                \begin{lstlisting}
+create table prejoin_movie_review
+(
+productID integer,
+movie_title varchar(500),
+userID varchar(500),
+profileName varchar(500),
+num_reader integer,
+num_helpfulness integer,
+score decimal(2,1),
+time date,
+summary varchar(10000),
+text text,
+primary key (productID, userID, score, time, summary),
+constraint prejoin_movie_review_fk foreign key (movie_id) references movie_info_fact(movie_id)
+);
+                \end{lstlisting}
+        \end{itemize}
+        \item \textbf{建立索引}\\
+        通常情况下，在建表时数据库会给主码创建索引，如果想给其他字段建立索引的话需要手动添加。而本项目中我们使用 MySQL 5.7，其有一个特性是在建表时给所有字段全部建立索引，方便了之后的查询操作。例如，我们执行 show index from movie\_review 可以查看 movie\_review 表中的所有索引：
+        \begin{figure}[H]
+    		\centering
+    		\includegraphics[width=0.7\linewidth]{img/index.png}
+    		\caption{movie\_review表索引}
+    		\label{fig:MySQL_DB2}
+    	\end{figure}
+    \end{enumerate}
+    改进版数据库结构如下图所示：
+    \begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{img/MySQL_DB2.png}
+		\caption{改进版表结构}
+		\label{fig:MySQL_DB2}
+	\end{figure}
 	\subsection{实验数据}
 	\subsubsection{按时间查询}
-	\begin{itemize}
-		\item 样例
-		\item 结果
-		\item 时间采样（优化前、后）
-		\item 平均时间（优化前、后）
-	\end{itemize}
+	    \begin{enumerate}
+	        \item 某某年上映了多少电影？
+    	        \begin{itemize}
+    	            \item 样例：2008 年上映了多少电影？
+    	            \item 结果：11624
+    	            \item 耗时：
+    	                \begin{itemize}
+    	                    \item 执行时间采样：39，31，32，32，34，35，40，35，35，39
+    	                    \item 平均执行时间：35.2
+    	                \end{itemize}
+    	            \item 无需优化
+    	        \end{itemize}
+    	    \item 某某年某某月上映了多少电影？
+    	        \begin{itemize}
+    	            \item 样例：2008 年 1 月上映多少电影？
+    	            \item 结果：2166
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 131，59，55，64，113，50，107，48，53，100 & 78.0\\
+    	                    优化后 &
+    	                    40，39，37，38，38，32，37，38，38，31 & 36.8\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：52.8\%
+    	        \end{itemize}
+    	    \item 某某年某某季度上映了多少电影？
+    	        \begin{itemize}
+    	            \item 样例：2008 年第一季度上映了多少电影？
+    	            \item 结果：3703
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 105，55，65，52，53，63，53，56，66，110 & 67.8\\
+    	                    优化后 & 35，33，38，32，33，37，33，35，32，30 & 33.8\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接、预存衍生数据
+    	            \item 优化效果：50.1\%
+    	        \end{itemize}
+    	    \item 周某上映多少电影？
+    	        \begin{itemize}
+    	            \item 样例：周二上映多少电影？
+    	            \item 结果：124840
+    	            \item 耗时：
+    	                \begin{itemize}
+    	                    \item 执行时间采样：41，33，36，42，35，33，56，39，33，40
+    	                    \item 平均执行时间：38.8
+    	                \end{itemize}
+    	            \item 无需优化
+    	        \end{itemize}
+	    \end{enumerate}
 	\subsubsection{按电影名称进行查询}
+	    \begin{enumerate}
+	        \item 某某电影共有哪些版本？
+    	        \begin{itemize}
+    	            \item 样例：电影”Beat Street"共有哪些版本？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Prime Video (streaming online video)",
+    "Prime Video",
+    "Blu-ray",
+    "DVD"
+],
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 65，61，153，53，135，46，56，63，167，57 & 85.6\\
+    	                    优化后 & 36，35，34，32，43，44，34，32，31，29 & 35\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：59.1\%
+    	        \end{itemize}
+    	    \item 某某电影是什么类型的？
+    	        \begin{itemize}
+    	            \item 样例：电影“Beat Street”是什么类型的？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Drama",
+    "Music Videos and Concerts",
+    "All MGM Titles",
+    "Musicals"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 135，105，63，51，55，54，58，52，105，52 & 73\\
+    	                    优化后 & 39，29，32，29，34，31，35，32，32，35 & 32.8\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：55.1\%
+    	        \end{itemize}
+    	    \item 某某电影在什么时候上映？
+    	        \begin{itemize}
+    	            \item 样例：电影"Beat Street"在什么时候上映？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "1984-1-1",
+    "2003-4-15"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 128，162，158，95，76，184，69，67，73，94 & 110.6\\
+    	                    优化后 & 37，25，33，27，36，27，30，36，28，38 & 31.7\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：71.3\%
+    	        \end{itemize}
+    	    \item 某某电影有多少同名电影？
+    	        \begin{itemize}
+    	            \item 样例：电影“Beat Street”有多少同名电影？
+    	            \item 结果：2
+    	            \item 耗时：
+    	                \begin{itemize}
+    	                    \item 执行时间采样：43，39，44，43，161，36，38，52，44，67
+    	                    \item 平均执行时间：56.7
+    	                \end{itemize}
+    	            \item 无需优化
+    	        \end{itemize}
+	        \item 某某电影有哪些演员？
+    	        \begin{itemize}
+    	            \item 样例：电影“Beat Street”有哪些演员参演？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Jon Chardiet",
+    "Saundra Santiago",
+    "Guy Davis",
+    "Leon W. Grant",
+    "Rae Dawn Chong"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 96，66，60，57，60，67，99，62，66，65 & 69.8\\
+    	                    优化后 & 43，42，35，41，51，53，87，36，34，38 & 46.0\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：34.1\%
+    	        \end{itemize}
+	        \item 某某电影导演是谁？
+    	        \begin{itemize}
+    	            \item 样例：电影”Beat Street“导演是谁？
+    	            \item 结果：”Stan Lathan“
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 62，63，68，138，64，167，59，92，161，73 & 94.7\\
+    	                    优化后 & 38，34，79，34，31，41，40，34，33，43 & 40.7\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：57.0\%
+    	        \end{itemize}
+	        \item 某某电影有哪些评论？
+    	        \begin{itemize}
+    	            \item 样例：电影”Beat Street“有哪些评论？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Kathy Sandoval \"kat3041\" -- 1970/1/16 -- 5.0 -- AWESOME!",
+    "Lisa Kerehi -- 1970/1/15 -- 5.0 -- EXCELLENT SERVICE!",
+    "Wade S. Pennell -- 1970/1/15 -- 5.0 -- Back when it all started!",
+    "MIKE \"MIKE\" -- 1970/1/14 -- 5.0 -- disregard post below, STILL  A CLASSIC, GROUND BREAKER!!",
+    "NICKY BRANS -- 1970/1/14 -- 5.0 -- DO NOT HATE",
+    "M. Burke -- 1970/1/15 -- 4.0 -- The Foundation",
+    "Maria T. Alvarado -- 1970/1/14 -- 5.0 -- 80's movies"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{itemize}
+    	                    \item 执行时间采样：328，315，309，319，270，313，345，350，290，239
+    	                    \item 平均执行时间：307.8
+    	                \end{itemize}
+    	            \item 无需优化
+    	        \end{itemize}
+	        \item 某某电影平均评分是多少？
+    	        \begin{itemize}
+    	            \item 样例：电影"Beat Street"平均评分多少？
+    	            \item 结果：4.391892
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 58，98，58，57，57，61，65，125，58，99 & 73.6\\
+    	                    优化后 & 29，30，30，30，30，33，31，29，31，30 & 30.3\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预存衍生数据
+    	            \item 优化效果：58.8\%
+    	        \end{itemize}
+	    \end{enumerate}
 	\subsubsection{按导演进行查询}
+	    \begin{enumerate}
+	        \item 某某导演执导了哪些电影？
+    	        \begin{itemize}
+    	            \item 样例：Yossi Wein 执导了哪些电影？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Operation Delta Force 5: Random Fire",
+    "Fugitive Rage / Merchant Of Death",
+    "Death Train",
+    "Octopus 2:River of Fear VHS",
+    "U.S. Seals",
+    "U.S. Seals - Dead Or Alive VHS",
+    "Us Seals",
+    "Disaster",
+    "Merchant of Death",
+    "Octopus 2: River of Fear",
+    "Death Train VHS",
+    "Cult of Fury",
+    "Operation Delta Force V:Random Fire VHS",
+    "Never Say Die VHS"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 116，50，54，72，56，70，59，60，58，63 & 65.8\\
+    	                    优化后 & 39，36，35，34，33，35，34，33，32，33 & 34.4\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：47.7\%
+    	        \end{itemize}
+	    \end{enumerate}
 	\subsubsection{按演员进行查询}
-	\subsubsection{对导演和演员关系进行查询}
+	    \begin{enumerate}
+	        \item 某某演员在哪些电影中担任主演？
+    	        \begin{itemize}
+    	            \item 样例：Harry Shannon 在那些电影中担任主演？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Yellow Rose of Texas VHS",
+    "Kansas Pacific",
+    "Song Of Texas VHS",
+    "Kansas Pacific VHS",
+    "The Yellow Rose of Texas",
+    "Song of Texas VHS",
+    "I Love Lucy: Season 1, Vol.3",
+    "The Yellow Rose of Texas VHS"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 201，59，63，58，111，212，64，59，57，103 & 98.7\\
+    	                    优化后 & 37，38，39，35，37，37，34，34，32，34 & 35.7\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：63.8\%
+    	        \end{itemize}
+	        \item 某些演员共同参演过哪些电影？
+    	        \begin{itemize}
+    	            \item 样例：Jena Malone, Julia Roberts 共同参演过哪些电影？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Stepmom",
+    "Stepmom [VHS]",
+    "Quedate a Mi Lado VHS",
+    "Stepmom VHS"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 150，121，116，140，170，138，175，145，153，165 & 148.2\\
+    	                    优化后 & 66，60，61，62，62，63，59，61，60，59 & 61.3\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：58.6\%
+    	        \end{itemize}
+	    \end{enumerate}
+    \subsubsection{对导演和演员关系进行查询}
+		\begin{enumerate}
+    		\item 经常合作的演员有哪些？
+        		\begin{itemize}
+        			\item 样例：经常合作的演员有哪些？
+        			\item 结果：使用100作为门槛。
+        			    \begin{lstlisting}
+"data": [
+    "Scott McNeil & Doc Harris for 150time(s)",
+    "Scott McNeil & Christopher Sabat for 150time(s)",
+    "Sean Schemmel & Doc Harris for 153time(s)",
+    "William Hartnell & Patrick Troughton for 109time(s)",
+    "Jon Pertwee & Patrick Troughton for 110time(s)",
+    "Christopher Sabat & Terry Klassen for 150time(s)",
+    "Lou Costello & Bud Abbott for 121time(s)",
+    "Jon Pertwee & William Hartnell for 108time(s)",
+    "Leonard Nimoy & DeForest Kelley for 152time(s)",
+    ...
+]
+        			    \end{lstlisting}
+        			\item 耗时：
+        			    \begin{itemize}
+        			        \item 执行时间采样：40，34，37，37，36，30，28，30，32，30
+        			        \item 平均执行时间：33.4
+        			    \end{itemize}
+        		    \item 必须用预存衍生数据方法进行优化，不优化便无法执行
+        		\end{itemize}
+            \item 经常合作的导演和演员有哪些？
+        		\begin{itemize}
+        			\item 样例：经常合作的导演和演员有哪些？
+        			\item 结果：使用100作为门槛。
+        			    \begin{lstlisting}
+"data": [
+    "Various & Various for 1419time(s)",
+    "Robert Becker & Gates McFadden for 128time(s)",
+    "Clint Eastwood & Clint Eastwood for 101time(s)",
+    "Gabrielle Beaumont & LeVar Burton for 128time(s)",
+    "Gates McFadden & LeVar Burton for 128time(s)",
+    "LeVar Burton & Gates McFadden for 128time(s)",
+    "Cliff Bole & Gates McFadden for 128time(s)",
+    ...
+]
+        			    \end{lstlisting}
+        			\item 耗时：
+        			    \begin{itemize}
+        			        \item 执行时间采样：32，38，25，27，34，27，30，53，26，27
+        			        \item 平均执行时间：31.9
+        			    \end{itemize}
+        		    \item 必须用预存衍生数据方法进行优化，不优化便无法执行
+        		\end{itemize}
+    		\item 经常合作的导演有哪些？
+        		\begin{itemize}
+        			\item 样例：经常合作的导演有哪些？
+        			\item 结果：使用50作为门槛。
+        			    \begin{lstlisting}
+"data": [
+    "Shinji Takagi & Takeshi Mori for 64time(s)",
+    "LeVar Burton & Gabrielle Beaumont for 128time(s)",
+    "LeVar Burton & Gates McFadden for 128time(s)",
+    "a & N for 104time(s)",
+    "Robert Becker & Gates McFadden for 128time(s)",
+    "Jim Martin & Ken Diego for 52time(s)",
+    "LeVar Burton & Cliff Bole for 128time(s)",
+    "Gates McFadden & Gabrielle Beaumont for 128time(s)",
+    ...
+]
+			            \end{lstlisting}
+        			\item 耗时：
+        			    \begin{itemize}
+        			        \item 执行时间采样：41，29，32，31，30，27，27，32，28，34
+        			        \item 平均执行时间：31.1
+        			    \end{itemize}
+        		    \item 必须用预存衍生数据方法进行优化，不优化便无法执行
+        		\end{itemize}
+	    \end{enumerate}
 	\subsubsection{按电影类别进行查询}
+	    \begin{enumerate}
+	        \item 某某类型的电影有多少？
+    	        \begin{itemize}
+    	            \item 样例：类型为 Action 和 Suspense 的电影有多少？
+    	            \item 结果：821
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 132，171，210，77，164，187，81，77，108，94 & 130.1\\
+    	                    优化后 & 66，67，80，86，65，67，70，74，63，60 & 69.8\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：46.6\%
+    	        \end{itemize}
+	    \end{enumerate}
 	\subsubsection{按用户评价进行查询}
-	\subsubsection{综合查询}
+	    \begin{enumerate}
+	        \item 评分为某某的电影有哪些？
+    	        \begin{itemize}
+    	            \item 样例：观众平均评分为 5 的电影有哪些？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "60 Minutes - Dumped on Skid Row May 20, 2007",
+    "Barrow, Alaska: Our Tales to Tell",
+    "Black Adder Series 3, Part 1 VHS",
+    "Bob Hope, Bing Crosby, Dean Martin, Jerry Lewis",
+    "Cafe Au Lait - with lotsa sugar, baby!",
+    "Cancer, Nutrition & Healing",
+    "Coleccion de Oro: Jorge Negrete, Vol. 1"
+    ......
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 1587，1008，1224，930，1187，1563，987，976，1118，1125 & 1170.5\\
+    	                    优化后 & 785，988，762，819，753，819，580，1105，994，678 & 828.3\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：29.2\%
+    	        \end{itemize}
+	        \item 某某用户喜欢的电影有哪些？
+    	        \begin{itemize}
+    	            \item 样例：用户ID为AWKP2OZY4WB8M的用户喜欢（评分大于4）的电影有哪些？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+    "Vampire Princess Miyu: The Last Shinma - Volume 6",
+    "Once Upon a Time in Mexico",
+    "Spirited Away VHS",
+    "El Mariachi (English Subtitled)",
+    "Spirited Away",
+    "Vampire Hunter D - Bloodlust VHS",
+    "Vampire Hunter D VHS",
+    "Once Upon A Time In Mexico",
+    "Pistolero VHS",
+    ......
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 63，64，53，62，53，57，53，57，57，54 & 57.3\\
+    	                    优化后 & 30，33，33，30，32，31，31，35，29，39 & 32.3\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：预连接
+    	            \item 优化效果：43.6\%
+    	        \end{itemize}
+	    \end{enumerate}
 	\subsection{实验结论}
-	
+	MySQL作为关系型数据库的佼佼者，对于传统的查询表现出极高的效率，同时也具有不俗的插入、删除和修改效率。此外，其性能十分稳定，在执行大批量数据导入操作时从未出现过异常中断，且对于相同的查询语句执行时间基本相同，不会出现其他类型数据库那样的较大波动。
+    通过预连接、预存衍生数据和插入索引的优化方式，MySQL的查询效率更加高效，可以看到大部分的查询所耗的时间都缩短了一半以上。我们并未一味地追求效率而完全放弃对减少数据冗余的追求，而是适可而止地对部分表进行预连接，这些预连接操作在数据量为20亿的时候仍可以完成。
+    但MySQL也有不足之处，对于对象之间的关系的查询它就显得力不从心。我们可以看到如果要查询哪些演员经常合作，就必须让演员们两两配对，依次计算它们的合作次数，这样做的效率是十分低下的。如果为了避免在执行查询时进行繁琐的计算而预先存储查询结果，这么做会小号大量的存储空间，且不利于数据更新。
 	
 	\section{分布式文件系统}
 	\subsection{概述}
