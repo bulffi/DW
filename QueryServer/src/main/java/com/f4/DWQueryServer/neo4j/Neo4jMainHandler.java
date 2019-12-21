@@ -7,10 +7,7 @@ import com.f4.DWQueryServer.entity.query.CollaborateQuery;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
 import com.f4.DWQueryServer.neo4j.handlers.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * @program: DW
@@ -36,6 +33,8 @@ public class Neo4jMainHandler {
     Query_7 query_7;
     @Autowired
     Query_8 query_8;
+    @Autowired
+    Cypher cypher;
     @PostMapping("/Neo4j/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery){
         if(specificQuery.getIdList().size() == 1){
@@ -94,5 +93,9 @@ public class Neo4jMainHandler {
     @PostMapping("/Neo4j/general/similarUser")
     public Object handleSimilarUserQuery(@RequestBody ClientQuery clientQuery){
         return query_8.getDataAnswer(clientQuery);
+    }
+    @GetMapping("/Neo4j/synthesis")
+    public Object handleArbitraryQuery(String sql){
+        return cypher.getDataAnswer(sql);
     }
 }
