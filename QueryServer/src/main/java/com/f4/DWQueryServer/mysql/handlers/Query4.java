@@ -32,7 +32,11 @@ public class Query4 { //按导演查询
         //要用的数据
         List<String> actors = query.getActors();
         String main_actor = query.getMain_actor();
-        int num_actors = actors.size();
+        int num_actors;
+        if(actors == null)
+            num_actors = 0;
+        else
+            num_actors = actors.size();
         String answer = query.getAnswer();
 
         //初始化返回值
@@ -96,7 +100,7 @@ public class Query4 { //按导演查询
                     sql.append("on temp" + (i - 1) + ".movie_id = temp" + i + ".movie_id ");
                 }
             }
-            if(main_actor.equals("") && num_actors != 0){//没有主演但有演员列表
+            if(main_actor == null && num_actors != 0){//没有主演但有演员列表
                 //sql.append(')');
             }
             else if (!main_actor.equals("") && num_actors != 0){ //既有演员列表又有主演
