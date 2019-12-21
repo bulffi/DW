@@ -66,6 +66,9 @@ public class Query_7 {
         if ("title".equals(query.getAnswer())) {
             queryTemplate = "match(u:USER{profile_name:'" + userName + "'})-[g:GRADE]->(m:MOVIE) where g.point >= " + from + " and g.point <= " + to + " return m.name as name";
         }
+        if("count".equals(query.getAnswer())){
+            queryTemplate = "match(u:USER{profile_name:'" + userName + "'})-[g:GRADE]->(m:MOVIE) where g.point >= " + from + " and g.point <= " + to + " return count(m) as count";
+        }
 
         return queryTemplate;
     }
