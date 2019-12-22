@@ -206,7 +206,7 @@ context.write( NullWritable.get(),new Text(JSON.toJSONString(info)));
 	初代物理模型一味追求降低数据冗余，直接将逻辑模型转化为数据库表结构，如下所示：
 	\begin{itemize}
 	    \item 电影信息主表
-	        \begin{lstlisting}[language=sql]
+	        \begin{lstlisting}
 create table movie_info
 (
     movie_id integer primary key,
@@ -217,7 +217,7 @@ create table movie_info
 );
 	        \end{lstlisting}
 	    \item 上映日期表
-	        \begin{lstlisting}[language=sql]
+	        \begin{lstlisting}
 create table date
 (
     date_key integer primary key,
@@ -226,7 +226,7 @@ create table date
 );
             \end{lstlisting}
         \item 导演表
-            \begin{lstlisting}[language=sql]
+            \begin{lstlisting}
 create table movie_director
 (
 movie_id integer,
@@ -236,7 +236,7 @@ constraint director_fk foreign key(movie_id) references movie_info(movie_id)
 );
             \end{lstlisting}
         \item 演员表
-            \begin{lstlisting}[language=sql]
+            \begin{lstlisting}
 create table movie_actor
 (
 movie_id integer,
@@ -247,7 +247,7 @@ constraint actor_fk foreign key(movie_id) references movie_info(movie_id)
 );
             \end{lstlisting}
         \item 电影类型表
-            \begin{lstlisting}[language=sql]
+            \begin{lstlisting}
 create table movie_type
 (
 movie_id integer,
@@ -257,7 +257,7 @@ constraint movie_type_fk foreign key(movie_id) references movie_info(movie_id)
 );
             \end{lstlisting}
         \item 电影版本表
-            \begin{lstlisting}[language=sql]
+            \begin{lstlisting}
 create table movie_version
 (
 movie_id integer,
@@ -267,7 +267,7 @@ constraint movie_version_fk foreign key(movie_id) references movie_info(movie_id
 );
             \end{lstlisting}
         \item 影评表
-            \begin{lstlisting}[language=sql]
+            \begin{lstlisting}
 create table movie_review
 (
 productID integer,
@@ -299,7 +299,7 @@ constraint product_movie_fk foreign key (productID) references movie_info(movie_
         在按照上映时间查询电影时，用户并不总是按照年月日进行查询，而是还会涉及到季度与星期。对于初代物理模型，在执行此类查询时需要根据年月日当场计算季度与星期，这是十分耗时的。故我们决定预先计算好“季度”，“上下半年”与“星期”三个衍生数据，将其存入 movie\_info\_fact 表（即原先的 movie\_info 表）和 movie\_release\_date（即原先的 date 表）中。改进后的表结构如下图所示：
         \begin{itemize}
             \item 电影信息事实表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table movie_info_fact
 (
 movie_id integer primary key,
@@ -311,7 +311,7 @@ constraint fact_date_fk foreign key (date_key) references movie_release_date(dat
 );
                 \end{lstlisting}
             \item 上映日期表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table movie_release_date
 (
 date_key integer primary key,
@@ -325,7 +325,7 @@ year_half integer
         用户时常按照平均评分查询电影。按照初代物理模型，在执行此类查询时需要将评论按 movie\_id 分好组，然后根据该分组中每一个影评的评分，分别计算每一个电影的平均评分，这是十分耗时的。故我们决定预先计算好每一个电影的评分以及评论人数，将其存在一个新表 precal\_movie\_avg\_score 中，其表结构如下所示：
         \begin{itemize}
             \item 电影平均评分表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table precal_movie_avg_score
 (
 movie_id integer primary key ,
@@ -339,7 +339,7 @@ constraint avg_score_fk foreign key (movie_id) references movie_info_fact(movie_
         对于“经常合作的演员有哪些”、“经常合作的导演有哪些”和“经常合作的导演和演员有哪些”这三种问题，按照初代物理模型，在每次执行这类查询的时候都必须对所有的演员和导演两两配对计算其一共合作了多少电影。但是导演和演员数量非常多，一共有二十万个，如果要对这二十万人两两配对计算，需要计算四百万次，这是不现实的。对此我们需要预先计算好这些数据，方便以后的查询。但即使是预先计算，四百万次也是个不小的数值，故我们挑选了参演电影书大于等于100的演员和执导电影数大于等于50的导演进行计算，以此简化计算量。计算结果存储在 precal\_collaboration\_actor, precal\_collaboration\_director, precal\_collaboration\_director\_actor 三张表中，表结构如下：
         \begin{itemize}
             \item 演员合作关系表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table precal_collaboration_actor
 (
 actor1 varchar(500),
@@ -351,7 +351,7 @@ constraint precal_collaboration_actor_fk2 foreign key (actor2) references prejoi
 );
                 \end{lstlisting}
             \item 导演合作关系表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table precal_collaboration_director
 (
 director_name1 varchar(500),
@@ -363,7 +363,7 @@ constraint precal_collaboration_director_fk2 foreign key (director_name2) refere
 );
                 \end{lstlisting}
             \item 导演演员合作关系表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table precal_collaboration_director_actor
 (
 director_name varchar(500),
@@ -379,7 +379,7 @@ constraint precal_collaboration_director_actor_fk2 foreign key (actor) reference
         用户有大量的查询是针对时间的。在初代物理模型中，观察 movie\_info 和 date 两张表我们可以发现，对于年份和星期的查询可以直接在 movie\_info 表中完成，但是如果涉及到月份、日期、季度和上下半年，就得把 movie\_info 表与 date 表 join 起来，这是非常耗时的。故我们以部分的数据冗余为代价，将这两张表预先连接起来形成 prejoin\_movie\_date 表，表结构如下所示：
         \begin{itemize}
             \item 上映日期预连接表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table prejoin_movie_date
 (
 movie_id integer primary key,
@@ -397,7 +397,7 @@ constraint prejoin_movie_date_fk foreign key (movie_id) references movie_info_fa
         用户查询指定电影的版本、类型、导演和演员时，往往是指定一个电影的名字，然而在 movie\_actor, movie\_director, movie\_type, movie\_version 和 movie\_review 这五个表中，我们只存了 movie\_id 而并未存 movie\_title，故要想建立 movie\_title 和 movie\_id 的映射关系，我们在每一次查询时都必须将这五张表与 movie\_info 表连接，这是非常耗时的。故我们决定预先完成这些连接过程，形成了 prejoin\_movie\_actor, prejoin\_movie\_director, prejoin\_movie\_type, prejoin\_movie\_version, prejoin\_movie\_review 五张表，表结构如下所示：
         \begin{itemize}
             \item 演员预连接表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table prejoin_movie_actor
 (
 movie_id integer,
@@ -409,7 +409,7 @@ constraint prejoin_movie_actor_fk foreign key (movie_id) references movie_info_f
 );
                 \end{lstlisting}
             \item 导演预连接表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table prejoin_movie_director
 (
 movie_id integer,
@@ -420,7 +420,7 @@ constraint prejoin_movie_director_fk foreign key (movie_id) references movie_inf
 );
                 \end{lstlisting}
             \item 电影类型预连接表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table prejoin_movie_type
 (
 movie_id integer,
@@ -431,7 +431,7 @@ constraint prejoin_movie_type_fk foreign key (movie_id) references movie_info_fa
 );
                 \end{lstlisting}
             \item 电影版本预连接表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table prejoin_movie_version
 (
 movie_id integer,
@@ -442,7 +442,7 @@ constraint prejoin_movie_version_fk foreign key (movie_id) references movie_info
 );
                 \end{lstlisting}
             \item 影评预连接表
-                \begin{lstlisting}[language=sql]
+                \begin{lstlisting}
 create table prejoin_movie_review
 (
 productID integer,
