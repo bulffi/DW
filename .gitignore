@@ -29,3 +29,10 @@ build/
 
 ### VS Code ###
 .vscode/
+doc/document.aux
+doc/document.log
+doc/document.out
+doc/document.pdf
+doc/document.synctex(busy)
+doc/document.synctex.gz
+doc/document.toc
