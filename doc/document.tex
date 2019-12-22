@@ -205,7 +205,7 @@ context.write( NullWritable.get(),new Text(JSON.toJSONString(info)));
 	\subsubsection{初步模型} \label{mysql:1}
 	初代物理模型一味追求降低数据冗余，直接将逻辑模型转化为数据库表结构，如下所示：
 	\begin{itemize}
-	    \item 日期表
+	    \item 电影信息主表
 	        \begin{lstlisting}
 create table movie_info
 (
@@ -216,7 +216,7 @@ create table movie_info
     constraint fact_date_fk foreign key (date_key) references date(date_key)
 );
 	        \end{lstlisting}
-	    \item 电影信息主表
+	    \item 上映日期表
 	        \begin{lstlisting}
 create table date
 (
@@ -291,7 +291,8 @@ constraint product_movie_fk foreign key (productID) references movie_info(movie_
 		\caption{初代表结构}
 		\label{fig:MySQL_DB1}
 	\end{figure}
-    \subsubsection{改进模型} \label{mysql:2}
+	在导入数据的过程中需要注意，由于我们做了Instance Matching，每一个电影的 movie\_id 可能不止一个。故我们重新给每一个电影赋予新id，并建立了一个临时的表并取名为 amazon\_movie\_id，其保存了新 id 与亚马逊网站上的 id 的映射关系：一个新 id 对应一到多个亚马逊 id。我们的其他表将不再使用亚马逊原来有的 id，而是全部使用我们自己新分配的 id。例如，在存储影评时，我们会查询 amazon\_movie\_id 表并将 productId 属性的值由亚马逊 id 转换成我们自己的id。
+	\subsubsection{改进模型} \label{mysql:2}
     初代物理模型虽然尽可能地降低了数据冗余，但是查询效率非常不理想，我们从如下三个方面进行了优化：
     \begin{enumerate}
         \item \textbf{预存衍生数据}\\
@@ -473,7 +474,7 @@ constraint prejoin_movie_review_fk foreign key (movie_id) references movie_info_
 		\centering
 		\includegraphics[width=0.7\linewidth]{img/MySQL_DB2.png}
 		\caption{改进版表结构}
-		\label{fig:MySQL_DB2}
+		\label{fig:MySQL_DB3}
 	\end{figure}
 	\subsection{实验数据}
 	\subsubsection{按时间查询}
