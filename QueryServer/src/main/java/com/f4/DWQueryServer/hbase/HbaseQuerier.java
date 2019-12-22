@@ -555,7 +555,7 @@ public class HbaseQuerier {
     Connection getRemoteHbaseConn(){
         Configuration config = HBaseConfiguration.create();
         try {
-            config.set("hbase.zookeeper.quorum","nn1");  //hbase 服务地址
+            config.set("hbase.zookeeper.quorum","118.31.76.206");  //hbase 服务地址
             config.set("hbase.zookeeper.property.clientPort","2181"); //端口号
 
             Connection conn = ConnectionFactory.createConnection(config);
