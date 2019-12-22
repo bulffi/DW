@@ -6,6 +6,7 @@ import com.f4.DWQueryServer.entity.query.CollaborateQuery;
 import com.f4.DWQueryServer.entity.query.SpecificQuery;
 import com.f4.DWQueryServer.mysql.handlers.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,6 +38,8 @@ public class MySQLMainHandler {
 
     @Autowired
     Query5 query5;
+    @Autowired
+    Query100 query100;
 
     @PostMapping("/MySQL/specify")
     public Object handleSpecifyQuery(@RequestBody SpecificQuery specificQuery) throws SQLException {
@@ -95,5 +98,10 @@ public class MySQLMainHandler {
     public Object handleCollaborationQuery(@RequestBody CollaborateQuery collaborateQuery) throws SQLException {
 
         return query5.getDataAnswer(collaborateQuery);
+    }
+    @GetMapping("/MySQL/synthesis")
+    public Object handleSynthesisQuery(String sql) throws SQLException {
+
+        return query100.getDataAnswer(sql);
     }
 }
