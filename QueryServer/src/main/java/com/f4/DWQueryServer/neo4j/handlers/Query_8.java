@@ -10,10 +10,7 @@ import org.neo4j.driver.v1.summary.ResultSummary;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -52,7 +49,9 @@ public class Query_8 {
                     pairs.add(pair);
                 }
             }
-            for (Query_5.Pair p : pairs) {
+            List<Query_5.Pair> pairList = new ArrayList<>(pairs);
+            pairList.sort((o1, o2) -> Integer.compare(o2.getNum(), o1.getNum()));
+            for (Query_5.Pair p : pairList) {
                 answer.add(p.getName_1() + " & " + p.getName_2() + " for " + p.getNum() + "time(s)");
             }
             dataAnswer.setTime(time);

@@ -22,39 +22,39 @@ public class Query_2 {
         String queryTemplate = "";
         switch (query.getAnswer()) {
             case "count": {
-                queryTemplate = "match(m:MOVIE) where m.name=~ '(.*?)" + query.getMovie_name() + "(.*?)' return count(m) as count";
+                queryTemplate = "match(m:MOVIE) where m.name= '" + query.getMovie_name() + "' return count(m) as count";
             }
             break;
             case "title": {
-                queryTemplate = "match(m:MOVIE) where m.name=~ '(.*?)" + name + "(.*?)' return m.name as name";
+                queryTemplate = "match(m:MOVIE) where m.name= '" + name + "' return m.name as name";
             }
             break;
             case "actor": {
-                queryTemplate = "match(m:MOVIE)<-[:ACT_IN]-(a:ACTOR) where m.name=~ '(.*?)" + name + "(.*?)' return distinct a.name as name";
+                queryTemplate = "match(m:MOVIE)<-[:ACT_IN]-(a:ACTOR) where m.name= '" + name + "' return distinct a.name as name";
             }
             break;
             case "id": {
-                queryTemplate = "match(m:MOVIE)<-[:IDENTIFIES]-(id:MOVIE_ID) where m.name=~ '(.*?)" + name + "(.*?)' return id.id as id";
+                queryTemplate = "match(m:MOVIE)<-[:IDENTIFIES]-(id:MOVIE_ID) where m.name= '" + name + "' return id.id as id";
             }
             break;
             case "director": {
-                queryTemplate = "match(m:MOVIE)<-[:DIRECTED]-(d:DIRECTOR) where m.name=~ '(.*?)" + name + "(.*?)' return distinct d.name as name";
+                queryTemplate = "match(m:MOVIE)<-[:DIRECTED]-(d:DIRECTOR) where m.name= '" + name + "' return distinct d.name as name";
             }
             break;
             case "date": {
-                queryTemplate = "match(m:MOVIE) where m.name=~ '(.*?)" + name + "(.*?)' return m.releaseDate as releaseDate";
+                queryTemplate = "match(m:MOVIE) where m.name= '" + name + "' return m.releaseDate as releaseDate";
             }
             break;
             case "type": {
-                queryTemplate = "match(m:MOVIE)-[:CATEGORY_IN]->(t:TYPE) where m.name=~ '(.*?)" + name + "(.*?)' return distinct t.name as name";
+                queryTemplate = "match(m:MOVIE)-[:CATEGORY_IN]->(t:TYPE) where m.name= '" + name + "' return distinct t.name as name";
             }
             break;
             case "version": {
-                queryTemplate = "match(m:MOVIE)-[:DELIVER_IN]->(v:VERSION) where m.name=~ '(.*?)" + name + "(.*?)' return distinct v.name as name";
+                queryTemplate = "match(m:MOVIE)-[:DELIVER_IN]->(v:VERSION) where m.name= '" + name + "' return distinct v.name as name";
             }
             break;
             case "comment": {
-                queryTemplate = "match(m:MOVIE)<-[:COMMENT_ON]-(c:COMMENT) where m.name=~ '(.*?)" + name + "(.*?)' return c.summary as comment";
+                queryTemplate = "match(m:MOVIE)<-[:COMMENT_ON]-(c:COMMENT) where m.name= '" + name + "' return c.summary as comment";
             }
 
         }
