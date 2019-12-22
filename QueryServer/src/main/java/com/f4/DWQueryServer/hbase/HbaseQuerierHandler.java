@@ -28,10 +28,7 @@ public class HbaseQuerierHandler {
         if(quarter > 0){
             return querier.queryBySeason(year, quarter);
         }
-        if(month > 0){
-            return querier.queryByTime(year, month);
-        }
-        return new DataAnswer();
+        return querier.queryByTime(year, month);
     }
 
     public TestAnswer queryByDateForTest(SpecificQuery specificQuery){
