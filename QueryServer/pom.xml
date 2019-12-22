@@ -39,6 +39,17 @@
             <artifactId>neo4j-java-driver</artifactId>
             <version>1.7.5</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-client</artifactId>
+            <version>2.2.2</version>
+        </dependency>
+        <!-- https://mvnrepository.com/artifact/org.apache.hbase/hbase-endpoint -->
+        <dependency>
+            <groupId>org.apache.hbase</groupId>
+            <artifactId>hbase-endpoint</artifactId>
+            <version>2.2.2</version>
+        </dependency>
     </dependencies>
 
     <build>
