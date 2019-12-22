@@ -11,7 +11,7 @@ public class Movie {
     private List<String> id;
     private String title;
     private List<String> director;
-    @JSONField(format="yyyy-mm-dd")
+    @JSONField(format="yyyy-MMid-dd")
     private Date releaseDate;
     private List<String> type;
     private List<String> version;

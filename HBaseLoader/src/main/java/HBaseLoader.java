@@ -8,7 +8,6 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.client.coprocessor.AggregationClient;
-import org.apache.hadoop.hbase.filter.*;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.BufferedReader;
@@ -21,30 +20,10 @@ import java.util.Date;
 import java.util.List;
 
 public class HBaseLoader {
+    static boolean isOver = false;
+    static String INFO_PATH = "/home/hbase/part-r-00000(1)";
     public static void main(String[] args) throws IOException {
-
-        HBaseLoader loader = new HBaseLoader();
-        Table table = loader.getLocalHbaseConn().getTable(TableName.valueOf("dw_movieComment"));
-        loader.loadId();
-        //loader.loadOther();
-        //loader.queryByTime(2007);
-        //loader.queryByTitle("\"20,000 Leagues Under the Sea\""); ;
-        //loader.loadOther();
-        //loader.queryById("B003AI2VGA");
-
-        Scan scan = new Scan();
-
-        Filter filter = new RowFilter(CompareFilter.CompareOp.EQUAL, new SubstringComparator("1000"));
-        filter = new WhileMatchFilter(filter);
-        scan.setFilter(filter);
-        long start = System.currentTimeMillis();
-        ResultScanner resultScanner = table.getScanner(scan);
-        for(Result result : resultScanner){
-            byte[] shang = result.getValue("comment".getBytes(), "productId".getBytes());
-            System.out.println(new String(shang));
-        }
-        System.out.println(System.currentTimeMillis() - start);
-
+        new HBaseLoader().loadComment();
     }
 
     void loadMovie(){
@@ -52,20 +31,16 @@ public class HBaseLoader {
         BufferedReader br = null;
         String line;
 
-        Connection conn = getLocalHbaseConn();
+        Connection conn = getRemoteHbaseConn();
 
         int count = 0;
 
 
         try {
-            fr = new FileReader("Data/part-r-00000(1)");
+            fr = new FileReader(INFO_PATH );
             br = new BufferedReader(fr);
 
-            Table table = conn.getTable(TableName.valueOf("dw"));
-            Table time_table = conn.getTable(TableName.valueOf("dw_movieInfo_time"));
-            Table director_table = conn.getTable(TableName.valueOf("dw_movieInfo_director"));
-            Table actor_table = conn.getTable(TableName.valueOf("dw_movieInfo_actor"));
-            Table type_table = conn.getTable(TableName.valueOf("dw_movieInfo_type"));
+            Table table = conn.getTable(TableName.valueOf("dw_movieInfo"));
 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-EEEE");
 
@@ -90,7 +65,7 @@ public class HBaseLoader {
                         put.addColumn(Bytes.toBytes("movie"), Bytes.toBytes("date"), Bytes.toBytes(date));
                     }catch (NullPointerException e){
                         System.out.println("Movie" + count + "doesn't has release date");
-                        put.addColumn(Bytes.toBytes("movie"), Bytes.toBytes("date"), Bytes.toBytes("nullDate" + count ));
+                        put.addColumn(Bytes.toBytes("movie"), Bytes.toBytes("date"), Bytes.toBytes("0000D" + count ));
                     }
                     try {
                         put.addColumn(Bytes.toBytes("movie"), Bytes.toBytes("type"), Bytes.toBytes(Joiner.on(",").join(movie.getType())));
@@ -110,7 +85,7 @@ public class HBaseLoader {
 
                     table.put(put);
 
-                    if (++count % 100 == 0) {
+                    if (++count % 1000 == 0) {
                         System.out.println("" + count + "row has been inserted");
                     }
                 }catch (NullPointerException e){
@@ -147,19 +122,17 @@ public class HBaseLoader {
 
 
         try {
-            fr = new FileReader("Data/part-r-00000(1)");
+            fr = new FileReader(INFO_PATH );
             br = new BufferedReader(fr);
 
             int index = 0;
 
-            Table time_table = conn.getTable(TableName.valueOf("dw_movieInfo_time"));
             Table director_table = conn.getTable(TableName.valueOf("dw_movieInfo_director"));
             Table actor_table = conn.getTable(TableName.valueOf("dw_movieInfo_actor"));
             Table type_table = conn.getTable(TableName.valueOf("dw_movieInfo_type"));
 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-EEEE");
 
-            List<Put> timePutList = new ArrayList<>();
             List<Put> directorPutList = new ArrayList<>();
             List<Put> actorPutList = new ArrayList<>();
             List<Put> typePutList = new ArrayList<>();
@@ -180,10 +153,6 @@ public class HBaseLoader {
                     List<String> actors = movie.getActor();
                     List<String> types = movie.getType();
 
-                    Put put_time = new Put(Bytes.toBytes(time + index++));
-                    put_time.addColumn(Bytes.toBytes("timeMap"), Bytes.toBytes("title"), Bytes.toBytes(title));
-                    timePutList.add(put_time);
-
                     for(String director : directors) {
                         Put put_director = new Put(Bytes.toBytes(director + index++));
                         put_director.addColumn(Bytes.toBytes("directorMap"), Bytes.toBytes("title"), Bytes.toBytes(title));
@@ -203,12 +172,10 @@ public class HBaseLoader {
                     }
 
                     if (++count % 100 == 0) {
-                        time_table.put(timePutList);
                         director_table.put(directorPutList);
                         actor_table.put(actorPutList);
                         type_table.put(typePutList);
 
-                        timePutList.clear();
                         directorPutList.clear();
                         actorPutList.clear();
                         typePutList.clear();
@@ -218,6 +185,91 @@ public class HBaseLoader {
                     e.printStackTrace();
                 }
             }
+            director_table.put(directorPutList);
+            actor_table.put(actorPutList);
+            type_table.put(typePutList);
+        }catch (IOException e){
+            e.printStackTrace();
+        }finally {
+            try {
+                if (fr != null) {
+                    fr.close();
+                }
+                if (br != null) {
+                    br.close();
+                }
+                if(conn != null){
+                    conn.close();
+                }
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+    }
+
+    void loadTime(){
+        FileReader fr = null;
+        BufferedReader br = null;
+        String line;
+
+        Connection conn = getRemoteHbaseConn();
+
+        int count = 0;
+
+
+        try {
+            fr = new FileReader(INFO_PATH );
+            br = new BufferedReader(fr);
+
+            int index = 0;
+
+            Table date_table = conn.getTable(TableName.valueOf("dw_movieInfo_time"));
+            Table weekday_table = conn.getTable(TableName.valueOf("dw_movieInfo_weekday"));
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-EEEE");
+
+            List<Put> datePutList = new ArrayList<>();
+            List<Put> weekdayPutList = new ArrayList<>();
+
+
+            while((line = br.readLine()) != null) {
+                try {
+                    Movie movie = JSONObject.parseObject(line, Movie.class);
+
+                    String title = movie.getTitle();
+                    String time, date, weekday;
+                    try {
+                        time = sdf.format(movie.getReleaseDate());
+                        date = time.substring(0, 10);
+                        weekday = time.substring(11, 14);
+                    }catch (Exception e){
+                        date = "0000D";
+                        weekday = "aaa";
+                    }
+
+                    Put put_date = new Put(Bytes.toBytes(date + index++));
+                    put_date.addColumn(Bytes.toBytes("timeMap"), Bytes.toBytes("title"), Bytes.toBytes(title));
+                    datePutList.add(put_date);
+
+                    Put put_weekday = new Put(Bytes.toBytes(weekday + index++));
+                    put_weekday.addColumn(Bytes.toBytes("weekdayMap"), Bytes.toBytes("title"), Bytes.toBytes(title));
+                    weekdayPutList.add(put_weekday);
+
+                    if (++count % 200 == 0) {
+                        date_table.put(datePutList);
+                        weekday_table.put(weekdayPutList);
+
+                        datePutList.clear();
+                        weekdayPutList.clear();
+                        System.out.println("" + count + "row has been inserted");
+                    }date_table.put(datePutList);
+                        weekday_table.put(weekdayPutList);
+                }catch (NullPointerException e){
+                    e.printStackTrace();
+                }
+            }
+            date_table.put(datePutList);
+            weekday_table.put(weekdayPutList);
         }catch (IOException e){
             e.printStackTrace();
         }finally {
@@ -247,7 +299,7 @@ public class HBaseLoader {
         int count = 0;
 
         try {
-            fr = new FileReader("Data/part-r-00000(1)");
+            fr = new FileReader(INFO_PATH );
             br = new BufferedReader(fr);
 
 
@@ -308,19 +360,20 @@ public class HBaseLoader {
 
         int count = 0;
 
-
         try {
-            fr = new FileReader("/home/saturn/Documents/movies.txt");
+            fr = new FileReader("/home/hbase/movies.txt");
+            //fr = new FileReader("/home/saturn/Documents/movies.txt");
             br = new BufferedReader(fr);
 
             Table table = conn.getTable(TableName.valueOf("dw_movieComment"));
+            Table idTitle = conn.getTable(TableName.valueOf("dw_movieInfo_id"));
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-            Boolean isOver = false;
+
             List<Put> putList = new ArrayList<>();
 
             while(!isOver) {
                 try {
-                    Comment comment = parseComment(br, isOver);
+                    Comment comment = parseComment(br);
                     Put put;
                     try {
                         double score = comment.getScore();
@@ -332,6 +385,10 @@ public class HBaseLoader {
 
                     try {
                         put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("product_id"), Bytes.toBytes(comment.getProduct_id()));
+                        Result result = idTitle.get(new Get(Bytes.toBytes(comment.getProduct_id())));
+                        byte[] title = result.getValue(Bytes.toBytes("idMap"), Bytes.toBytes("title"));
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("title"), title);
+
                     }catch (NullPointerException e){
                         System.out.println("Movie" + count + "doesn't has product id");
                     }
@@ -371,12 +428,112 @@ public class HBaseLoader {
                         System.out.println("Movie" + count + "doesn't has review text");
                     }
 
-                    //putList.add(put);
-                    table.put(put);
+                    putList.add(put);
 
-                    if (++count % 100 == 0) {
-                        //table.put(put);
-                        //putList = new ArrayList<>();
+                    if (++count % 500 == 0) {
+                        table.put(putList);
+                        putList = new ArrayList<>();
+                        System.out.println("" + count + "row has been inserted");
+                    }
+                }catch (NullPointerException e){
+                    e.printStackTrace();
+                }
+            }
+            table.put(putList);
+        }catch (IOException e){
+            e.printStackTrace();
+        }finally {
+            try {
+                if (fr != null) {
+                    fr.close();
+                }
+                if (br != null) {
+                    br.close();
+                }
+                if(conn != null){
+                    conn.close();
+                }
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+        }
+    }
+
+    void loadCommentRaw(){
+        FileReader fr = null;
+        BufferedReader br = null;
+        String line;
+
+        Connection conn = getRemoteHbaseConn();
+
+        int count = 0;
+
+        try {
+            fr = new FileReader("/home/hbase/movies.txt");
+            //fr = new FileReader("/home/saturn/Documents/movies.txt");
+            br = new BufferedReader(fr);
+
+            Table table = conn.getTable(TableName.valueOf("dw_movieCommentRaw"));
+            Table idTitle = conn.getTable(TableName.valueOf("dw_movieInfo_id"));
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+            List<Put> putList = new ArrayList<>();
+
+            while(!isOver) {
+                try {
+                    Comment comment = parseComment(br);
+                    Put put = new Put(Bytes.toBytes(count));
+
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("product_id"), Bytes.toBytes(comment.getProduct_id()));
+                        Result result = idTitle.get(new Get(Bytes.toBytes(comment.getProduct_id())));
+                        byte[] title = result.getValue(Bytes.toBytes("idMap"), Bytes.toBytes("title"));
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("title"), title);
+
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has product id");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("user_id"), Bytes.toBytes(comment.getUser_id()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has user id");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("profile_name"), Bytes.toBytes(comment.getProfile_name()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has release profile name");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("helpfulness"), Bytes.toBytes(comment.getHelpfulness()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has helpfulness");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("score"), Bytes.toBytes(comment.getScore()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has score");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("review_time"), Bytes.toBytes(sdf.format(comment.getReview_time())));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has review time");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("summary"), Bytes.toBytes(comment.getSummary()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has summary");
+                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("review_text"), Bytes.toBytes(comment.getReview_text()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has review text");
+                    }
+
+                    putList.add(put);
+
+                    if (++count % 400 == 0) {
+                        table.put(putList);
+                        putList = new ArrayList<>();
                         System.out.println("" + count + "row has been inserted");
                     }
                 }catch (NullPointerException e){
@@ -420,7 +577,7 @@ public class HBaseLoader {
     Connection getRemoteHbaseConn(){
         Configuration config = HBaseConfiguration.create();
         try {
-            config.set("hbase.zookeeper.quorum","nn1");  //hbase 服务地址
+            config.set("hbase.zookeeper.quorum","nn1");
             config.set("hbase.zookeeper.property.clientPort","2181"); //端口号
 
             Connection conn = ConnectionFactory.createConnection(config);
@@ -456,7 +613,7 @@ public class HBaseLoader {
         return null;
     }
 
-    Comment parseComment(BufferedReader br, Boolean isOver){
+    Comment parseComment(BufferedReader br){
         int index = 0;
         String lineItem;
         Comment comment = new Comment();

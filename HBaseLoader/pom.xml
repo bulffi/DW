@@ -43,7 +43,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>com.saturn.hbasetest</mainClass>
+                            <mainClass>HbaseQuerier</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
