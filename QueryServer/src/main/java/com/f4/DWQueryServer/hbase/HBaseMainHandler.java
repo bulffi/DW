@@ -38,7 +38,7 @@ public class HBaseMainHandler {
                     if(specificQuery.getAnswerType().equals("data")){
                         return hbaseQuerierHandler.queryByTitleForData(specificQuery);
                     }else {
-                        return hbaseQuerierHandler.queryByDirectorForTest(specificQuery);
+                        return hbaseQuerierHandler.queryByTitleForTest(specificQuery);
                     }
                 }
                 case "3":{ //by director
@@ -57,18 +57,18 @@ public class HBaseMainHandler {
                 }
                 case "6":{
                     if(specificQuery.getAnswerType().equals("data")){
-                        return hbaseQuerierHandler.queryByActorForData(specificQuery);
+                        return hbaseQuerierHandler.queryByTypeForData(specificQuery);
                     }else {
                         return hbaseQuerierHandler.queryByTypeForTest(specificQuery);
                     }
                 }
-//                case "7":{
-//                    if(specificQuery.getAnswerType().equals("data")){
-//                        return querier.getDataAnswer(specificQuery);
-//                    }else {
-//                        return querier.getTestAnswer(specificQuery);
-//                    }
-//                }
+                case "7":{
+                    if(specificQuery.getAnswerType().equals("data")){
+                        return hbaseQuerierHandler.queryByUserForData(specificQuery);
+                    }else {
+                        return hbaseQuerierHandler.queryByUserForTest(specificQuery);
+                    }
+                }
             }
         }
         //IdList为空，返回空查询结果

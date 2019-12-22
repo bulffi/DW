@@ -1,3 +1,5 @@
+package com.f4.DWQueryServer.hbase;
+
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.*;
 import org.apache.hadoop.hbase.filter.BinaryComparator;
@@ -19,7 +21,7 @@ public class QueryThread extends Thread {
     private CountDownLatch latch;
     private List<String> movies;
 
-    public QueryThread(String user, double score_from, double score_to, int start ,int stop, List<String> movies, CountDownLatch latch){
+    public QueryThread(String user, double score_from, double score_to, int start , int stop, List<String> movies, CountDownLatch latch){
         this.user = user;
         this.score_from = score_from;
         this.score_to = score_to;
@@ -51,7 +53,7 @@ public class QueryThread extends Thread {
             for (Result result : resultScanner) {
                 index++;
                 byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
-                if (movieScore != null && Bytes.toDouble(movieScore) > score_from && Bytes.toDouble(movieScore) < score_to) {
+                if (movieScore != null && Bytes.toDouble(movieScore) >= score_from && Bytes.toDouble(movieScore) <= score_to) {
                     String movie = Bytes.toString(result.getValue(Bytes.toBytes("comment"),
                             Bytes.toBytes("title")));
                     movies.add(movie);

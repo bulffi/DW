@@ -74,12 +74,13 @@ public class HbaseQuerier {
                     querier.queryByTitle(params[1]);
                     break;
                 case "user":
-                    double score = Double.parseDouble(params[2]);
-                    if(params[4].equals("0")) {
-                        querier.queryByUserRaw(params[1], score);
+                    double score_from = Double.parseDouble(params[2]);
+                    double score_to = Double.parseDouble(params[3]);
+                    if(params[5].equals("0")) {
+                        querier.queryByUserRaw(params[1], score_from, score_to);
                     }else {
-                        int numThreads = Integer.parseInt(params[3]);
-                        querier.queryByUser(params[1], score, numThreads);
+                        int numThreads = Integer.parseInt(params[4]);
+                        querier.queryByUser(params[1], score_from, score_to, numThreads);
                     }
                 default:
                     break;
@@ -497,7 +498,7 @@ public class HbaseQuerier {
         }
     }
 
-    void queryByUserRaw(String user, double score){
+    void queryByUserRaw(String user, double score_from, double score_to){
         Connection conn = getLocalHbaseConn();
         long start = System.currentTimeMillis();
         int index = 0;
@@ -512,7 +513,7 @@ public class HbaseQuerier {
 
             for(Result result : resultScanner){
                 byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
-                if(movieScore != null && Bytes.toDouble(movieScore) > score) {
+                if(movieScore != null && Bytes.toDouble(movieScore) > score_from && Bytes.toDouble(movieScore) < score_to) {
                     index++;
                     System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"),
                             Bytes.toBytes("title"))));
@@ -526,7 +527,7 @@ public class HbaseQuerier {
         }
     }
 
-    void queryByUser(String user, double score, int numThreads){
+    void queryByUser(String user, double score_from, double score_to, int numThreads){
         long start = System.currentTimeMillis();
         final CountDownLatch latch = new CountDownLatch(numThreads);
         List<String>[] results = new ArrayList[numThreads];
@@ -539,7 +540,7 @@ public class HbaseQuerier {
 
 
         for(int i = 0; i < results.length; i++) {
-            new QueryThread(user, score, interval * i, interval * (i + 1), results[i], latch).start();
+            new QueryThread(user, score_from, score_to,interval * i, interval * (i + 1), results[i], latch).start();
         }
 
 

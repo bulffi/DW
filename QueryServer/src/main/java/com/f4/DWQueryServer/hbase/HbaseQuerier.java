@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 @Service
 public class HbaseQuerier {
@@ -100,7 +101,7 @@ public class HbaseQuerier {
             for(Result result : resultScanner){
                 index++;
                 data.add(Bytes.toString(result.getValue(Bytes.toBytes("timeMap"), Bytes.toBytes("title")))
-                + Bytes.toString(result.getRow()));
+                + "(" + Bytes.toString(result.getRow()) + ")");
             }
             resultScanner.close();
 
@@ -444,6 +445,7 @@ public class HbaseQuerier {
             long cost = System.currentTimeMillis() - start;
 
             dataAnswer.setTime(cost);
+            dataAnswer.setData(data);
             System.out.println("Costs " + cost + ", all " + index);
         } catch (IOException e) {
             e.printStackTrace();
@@ -505,35 +507,45 @@ public class HbaseQuerier {
         }
     }
 
-    void queryByUser(String user, double score){
+    DataAnswer queryByUser(String user, double score_from, double score_to, int numThreads){
         long start = System.currentTimeMillis();
-        int index = 0;
-        int numThreads = 2;
+        final CountDownLatch latch = new CountDownLatch(numThreads);
+        List<String>[] results = new ArrayList[numThreads];
+        int interval = 7910000 / numThreads + 1;
+        int count = 0;
 
-        for(int i = 0; i < numThreads; i++) {
-            Connection conn = getLocalHbaseConn();
-            try {
-                Table table = conn.getTable(TableName.valueOf("dw_movieComment"));
-                Filter filter = new SingleColumnValueFilter(Bytes.toBytes("comment"), Bytes.toBytes("profile_name"),
-                        CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(user)));
-                Scan scan = new Scan();
-                scan.setFilter(filter);
+        List<String> data = new ArrayList<>();
+        DataAnswer dataAnswer = new DataAnswer();
 
-                ResultScanner resultScanner = table.getScanner(scan);
-
-                for (Result result : resultScanner) {
-                    index++;
-                    if (Bytes.toDouble(result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"))) > score) {
-                        System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"),
-                                Bytes.toBytes("title"))));
-                    }
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        for(int i = 0; i < results.length; i++){
+            results[i] = new ArrayList<>();
         }
+
+
+        for(int i = 0; i < results.length; i++) {
+            new QueryThread(user, score_from, score_to, interval * i, interval * (i + 1), results[i], latch).start();
+        }
+
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
         long cost = System.currentTimeMillis() - start;
-        System.out.println("Costs " + cost + ", all " + index);
+        for(int i = 0; i < results.length; i++){
+            for(int j = 0; j < results[i].size(); j++){
+                data.add(results[i].get(j));
+            }
+            count += results[i].size();
+        }
+
+        dataAnswer.setData(data);
+        dataAnswer.setTime(cost);
+        System.out.println("Costs " + cost + ", all " + count);
+
+        return dataAnswer;
     }
 
 

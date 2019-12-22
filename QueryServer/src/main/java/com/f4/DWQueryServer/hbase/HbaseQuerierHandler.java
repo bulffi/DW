@@ -59,7 +59,7 @@ public class HbaseQuerierHandler {
 
     public DataAnswer queryByActorForData(SpecificQuery specificQuery){
         List<String> actors = specificQuery.getActors();
-        if(actors.size() == 0){
+        if(actors == null || actors.size() == 0){
             return new DataAnswer();
         }
         return querier.queryByActor(actors.get(0));
@@ -101,6 +101,21 @@ public class HbaseQuerierHandler {
     public TestAnswer queryByTitleForTest(SpecificQuery specificQuery){
         TestAnswer testAnswer = new TestAnswer();
         testAnswer.setTime(queryByTitleForData(specificQuery).getTime());
+        return testAnswer;
+    }
+
+
+    public DataAnswer queryByUserForData(SpecificQuery specificQuery){
+        String userName = specificQuery.getComment().getUser_name();
+        double score_from = specificQuery.getComment().getScore_from();
+        double score_to = specificQuery.getComment().getScore_to();
+
+        return querier.queryByUser(userName, score_from, score_to, 2);
+    }
+
+    public TestAnswer queryByUserForTest(SpecificQuery specificQuery){
+        TestAnswer testAnswer = new TestAnswer();
+        testAnswer.setTime(queryByUserForData(specificQuery).getTime());
         return testAnswer;
     }
 }
