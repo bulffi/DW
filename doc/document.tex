@@ -1236,9 +1236,78 @@ constraint prejoin_movie_review_fk foreign key (movie_id) references movie_info_
     	            \item 优化方法：将演员作为行键建立新表
     	            \item 优化效果：95.6\%
     	        \end{itemize}
-	    \end{enumerate}
+		\end{enumerate}
+		\subsubsection{按电影类别进行查询}
+	    \begin{enumerate}
+	        \item 某某类型的电影有多少？
+    	        \begin{itemize}
+    	            \item 样例：类型为 Comedy 的电影有多少？
+    	            \item 结果：20967
+    	             \begin{lstlisting}
+"data": [
+	"The 40-Year-Old Virgin",
+	"Bear Cub",
+	"Sangre de Mi Sangre","
+	"Bank Job",
+	"Bel Ami",
+	"Transamerica",
+	"Confessions of a Dangerous Mind",
+	"Stoning Of Soraya M.",
+...
+]
+					\end{lstlisting}
+					\item 耗时：
+					\begin{longtable}{l|p{5cm}|l}
+						\hline
+						是否优化 & 执行时间采样 & 平均执行时间\\
+						\hline
+						\hline
+						优化前 & 1087，640，753，628，817，617，680，624，578，638& 687.2\\
+						优化后 &478，188，189，208，255，192，219，216，183，199 & 232.7\\
+						\hline
+						\caption{执行时间比较}
+					\end{longtable}
+					\item 优化方法：将演员作为行键建立新表
+					\item 优化效果：66.1\%
+				\end{itemize}
+		\end{enumerate}
+		\subsubsection{按用户评价进行查询}
+	    \begin{enumerate}
+	        \item 某某用户喜欢的电影有哪些？
+    	        \begin{itemize}
+    	            \item 样例：用户 Grady Harp 喜欢的电影（假设评价为3分以上为喜欢）
+    	            \item 结果（部分）：6094
+					\item 优化前耗时:
+						\begin{itemize}
+							\item 执行时间采样：130307(时间过长，只查询一次)
+							\item 平均执行时间：130307
+						\end{itemize}
+					\item 优化方式：多线程
+					\item 优化后耗时
+					\begin{itemize}
+						\item 3个线程
+						\begin{itemize}
+							\item 执行时间采样：89507
+							\item 平均执行时间：89507
+							\item 优化效果：31.3\%
+						\end{itemize}
+						\item 2个线程
+						\begin{itemize}
+							\item 执行时间采样：92730
+							\item 平均执行时间：92730
+							\item 优化效果：28.8\%
+						\end{itemize}
+					\end{itemize}
+				\end{itemize}
+		\end{enumerate}
 	\subsection{实验结论}
-	
+	HBase 作为分布式、海量并且实时的大数据仓库，在存储方面具有很大的优势。在本次项目中，导入近800万行的评论数据只花了半个小时左右。不过 HBase 属于列数据库，没有传统关系型数据库中join操作、聚合操作等等，所以本次项目列出的查询并不适合用 HBase 来做，但是经过一些优化后，性能还是可以提高很多。
+	本次项目中针对 HBase 的优化有两种
+	\begin{itemize}
+		\item \textbf{行键}
+		\item \textbf{多线程}
+	\end{itemize}
+	对于一些较小的表可以\textbf{作为查询条件的列}和\textbf{待查询的列}单独拿出作为新的表，利用行键的优势来加快查询速度；而对于一些比较大的表，例如在本项目中的\textbf{评论表}，则可采用多线程的方式，将大表分成若干区段来分别查询，以此加快查询速度。HBase适合处理海量数据，一般的处理数十亿行数据都是实时的，而在本次项目中最多涉及千万行的数据，所以和Mysql、Neo4J相比并没有太大优势，不过随着数据量的增加，HBase 的优势将越来越明显。
 	\section{图数据库}
 	\subsection{概述}
 	根据课程中朱老师的建议，我们使用了最有名的图数据库Neo4j来作为本项目的图数据库部分存储方案。与前两者采用的云端方案不同，我们在图数据库部分直接使用的是Neo4j的桌面版本，以便能够更好的使用Neo4j Browser 来进行数据模型的可视化。总而言之，在图数据库部分选择的软件版本与配置信息如下所示：
