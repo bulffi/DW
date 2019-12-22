@@ -354,15 +354,14 @@ public class HBaseLoader {
     void loadComment(){
         FileReader fr = null;
         BufferedReader br = null;
-        String line;
 
-        Connection conn = getRemoteHbaseConn();
+        Connection conn = getLocalHbaseConn();
 
         int count = 0;
 
         try {
-            fr = new FileReader("/home/hbase/movies.txt");
-            //fr = new FileReader("/home/saturn/Documents/movies.txt");
+            //fr = new FileReader("/home/hbase/movies.txt");
+            fr = new FileReader("/home/saturn/Documents/movies.txt");
             br = new BufferedReader(fr);
 
             Table table = conn.getTable(TableName.valueOf("dw_movieComment"));
@@ -374,14 +373,7 @@ public class HBaseLoader {
             while(!isOver) {
                 try {
                     Comment comment = parseComment(br);
-                    Put put;
-                    try {
-                        double score = comment.getScore();
-                        put = new Put(Bytes.toBytes("" + score + count));
-                    }catch (NullPointerException e){
-                        System.out.println("Movie" + count + "doesn't has score");
-                        continue;
-                    }
+                    Put put = new Put(Bytes.toBytes(count));
 
                     try {
                         put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("product_id"), Bytes.toBytes(comment.getProduct_id()));
@@ -407,11 +399,11 @@ public class HBaseLoader {
                     }catch (NullPointerException e){
                         System.out.println("Movie" + count + "doesn't has helpfulness");
                     }
-//                    try {
-//                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("score"), Bytes.toBytes(comment.getScore()));
-//                    }catch (NullPointerException e){
-//                        System.out.println("Movie" + count + "doesn't has score");
-//                    }
+                    try {
+                        put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("score"), Bytes.toBytes(comment.getScore()));
+                    }catch (NullPointerException e){
+                        System.out.println("Movie" + count + "doesn't has score");
+                    }
                     try {
                         put.addColumn(Bytes.toBytes("comment"), Bytes.toBytes("review_time"), Bytes.toBytes(sdf.format(comment.getReview_time())));
                     }catch (NullPointerException e){
@@ -430,7 +422,7 @@ public class HBaseLoader {
 
                     putList.add(put);
 
-                    if (++count % 500 == 0) {
+                    if (++count % 1000 == 0) {
                         table.put(putList);
                         putList = new ArrayList<>();
                         System.out.println("" + count + "row has been inserted");
@@ -464,7 +456,7 @@ public class HBaseLoader {
         BufferedReader br = null;
         String line;
 
-        Connection conn = getRemoteHbaseConn();
+        Connection conn = getLocalHbaseConn();
 
         int count = 0;
 
@@ -531,7 +523,7 @@ public class HBaseLoader {
 
                     putList.add(put);
 
-                    if (++count % 400 == 0) {
+                    if (++count % 1000 == 0) {
                         table.put(putList);
                         putList = new ArrayList<>();
                         System.out.println("" + count + "row has been inserted");

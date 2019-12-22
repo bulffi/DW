@@ -477,23 +477,25 @@ public class HbaseQuerier {
         }
     }
 
-    void queryByScore(Double score){
+    void queryByUserRaw(String user, double score){
         Connection conn = getLocalHbaseConn();
         long start = System.currentTimeMillis();
         int index = 0;
         try {
             Table table = conn.getTable(TableName.valueOf("dw_movieComment"));
-            Filter filter = new RowFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new BinaryComparator(Bytes.toBytes(String.valueOf(score))));
+            Filter filter = new SingleColumnValueFilter(Bytes.toBytes("comment"), Bytes.toBytes("profile_name"),
+                    CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(user)));
             Scan scan = new Scan();
-            scan.withStartRow(Bytes.toBytes(String.valueOf(score)));
             scan.setFilter(filter);
 
             ResultScanner resultScanner = table.getScanner(scan);
 
-            List<Get> gets = new ArrayList<>();
             for(Result result : resultScanner){
                 index++;
-                System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("title"))));
+                if(Bytes.toDouble(result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"))) > score) {
+                    System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"),
+                            Bytes.toBytes("title"))));
+                }
             }
 
             long cost = System.currentTimeMillis() - start;
@@ -501,6 +503,37 @@ public class HbaseQuerier {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    void queryByUser(String user, double score){
+        long start = System.currentTimeMillis();
+        int index = 0;
+        int numThreads = 2;
+
+        for(int i = 0; i < numThreads; i++) {
+            Connection conn = getLocalHbaseConn();
+            try {
+                Table table = conn.getTable(TableName.valueOf("dw_movieComment"));
+                Filter filter = new SingleColumnValueFilter(Bytes.toBytes("comment"), Bytes.toBytes("profile_name"),
+                        CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(user)));
+                Scan scan = new Scan();
+                scan.setFilter(filter);
+
+                ResultScanner resultScanner = table.getScanner(scan);
+
+                for (Result result : resultScanner) {
+                    index++;
+                    if (Bytes.toDouble(result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"))) > score) {
+                        System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"),
+                                Bytes.toBytes("title"))));
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        long cost = System.currentTimeMillis() - start;
+        System.out.println("Costs " + cost + ", all " + index);
     }
 
 
@@ -548,7 +581,7 @@ public class HbaseQuerier {
     AggregationClient getRemoteAggregationClient(){
         Configuration config = HBaseConfiguration.create();
         try{
-            config.set("hbase.zookeeper.quorum","nn1");  //hbase 服务地址
+            config.set("hbase.zookeeper.quorum","118.31.76.206");  //hbase 服务地址
             config.set("hbase.zookeeper.property.clientPort","2181"); //端口号
             AggregationClient aggregationClient = new AggregationClient(config);
             return aggregationClient;

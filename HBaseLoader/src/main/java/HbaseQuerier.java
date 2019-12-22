@@ -13,6 +13,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.CountDownLatch;
 
 public class HbaseQuerier {
     public static void main(String[] args){
@@ -72,6 +73,14 @@ public class HbaseQuerier {
                 case "title":
                     querier.queryByTitle(params[1]);
                     break;
+                case "user":
+                    double score = Double.parseDouble(params[2]);
+                    if(params[4].equals("0")) {
+                        querier.queryByUserRaw(params[1], score);
+                    }else {
+                        int numThreads = Integer.parseInt(params[3]);
+                        querier.queryByUser(params[1], score, numThreads);
+                    }
                 default:
                     break;
             }
@@ -488,23 +497,26 @@ public class HbaseQuerier {
         }
     }
 
-    void queryByScore(Double score){
+    void queryByUserRaw(String user, double score){
         Connection conn = getLocalHbaseConn();
         long start = System.currentTimeMillis();
         int index = 0;
         try {
             Table table = conn.getTable(TableName.valueOf("dw_movieComment"));
-            Filter filter = new RowFilter(CompareFilter.CompareOp.GREATER_OR_EQUAL, new BinaryComparator(Bytes.toBytes(String.valueOf(score))));
+            Filter filter = new SingleColumnValueFilter(Bytes.toBytes("comment"), Bytes.toBytes("profile_name"),
+                    CompareFilter.CompareOp.EQUAL, new BinaryComparator(Bytes.toBytes(user)));
             Scan scan = new Scan();
-            scan.withStartRow(Bytes.toBytes(String.valueOf(score)));
             scan.setFilter(filter);
 
             ResultScanner resultScanner = table.getScanner(scan);
 
-            List<Get> gets = new ArrayList<>();
             for(Result result : resultScanner){
-                index++;
-                System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("title"))));
+                byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
+                if(movieScore != null && Bytes.toDouble(movieScore) > score) {
+                    index++;
+                    System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"),
+                            Bytes.toBytes("title"))));
+                }
             }
 
             long cost = System.currentTimeMillis() - start;
@@ -512,6 +524,36 @@ public class HbaseQuerier {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    void queryByUser(String user, double score, int numThreads){
+        long start = System.currentTimeMillis();
+        final CountDownLatch latch = new CountDownLatch(numThreads);
+        List<String>[] results = new ArrayList[numThreads];
+        int interval = 7910000 / numThreads + 1;
+        int count = 0;
+
+        for(int i = 0; i < results.length; i++){
+            results[i] = new ArrayList<>();
+        }
+
+
+        for(int i = 0; i < results.length; i++) {
+            new QueryThread(user, score, interval * i, interval * (i + 1), results[i], latch).start();
+        }
+
+
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        long cost = System.currentTimeMillis() - start;
+        for(int i = 0; i < results.length; i++){
+            count += results[i].size();
+        }
+        System.out.println("Costs " + cost + ", all " + count);
     }
 
 
