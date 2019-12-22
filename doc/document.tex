@@ -979,8 +979,263 @@ constraint prejoin_movie_review_fk foreign key (movie_id) references movie_info_
 	
 	\section{分布式文件系统}
 	\subsection{概述}
+	为了体现分布式的特点，我们小组在阿里云上租了5台云主机，在这5台云主机上搭建了Hadoop集群，并以此为基础搭建了Hbase集群。然后我们小组将电影信息以及电影评论的数据导入Hbase集群中，并根据给定的查询类型在存储方案上作出了一些优化。
+	我们所租的五台云主机配置相同，详细信息如下：
+
+	\begin{longtable}{l|p{5cm}|l}
+		\hline
+		CPU & 内存 & 磁盘\\
+		\hline
+		\hline
+		一核 &2G & 40G SSD高性能云盘\\
+		\hline
+		\caption{执行时间比较}
+	\end{longtable}
+	HBase集群一览
+	\begin{figure}[H]
+		\centering
+		\includegraphics[width=0.7\linewidth]{img/HBase_cluster.jpg}
+		\caption{HBase集群一览}
+		\label{fig:HBase_cluster}
+	\end{figure}
 	\subsection{存储模型及其优化方案}
+	\subsubsection{初步想法}
+	由于Hbase为列数据库，并不能像关系型数据库那样进行join操作，所以无需遵循第一范式，我们建立了两张大表来存储电影信息和电影评论
+	\begin{itemize}
+		\item dw\_movieInfo
+			\begin{itemize}
+				\item title(行键)
+				\item movie（列族)，分别有如下列：
+				\begin{itemize}
+					\item id，同一部电影的所有id，为多值属性，以逗号拼接而成
+					\item director，一部电影的所有导演，为多值属性，以逗号拼接而成，可能为空
+					\item date，电影的上映日期，可能为空
+					\item type，电影的类型，多值属性，以逗号拼接而成，可能为空
+					\item version，电影的版本，多值属性，以逗号拼接而成，可能为空
+					\item actor，电影的演员，多值属性，以逗号拼接而成，可能为空
+				\end{itemize}
+			\end{itemize}
+		\item dw\_movieComment
+			\begin{itemize}
+				\item index（行键），由于电影评论中无具有唯一性的属性，所以行键设置为递增的整型数字
+				\item comment（列族），分别有如下列：
+				\begin{itemize}
+					\item product\_id，电影ID
+					\item user\_id，用户ID
+					\item profile\_name，用户名
+					\item helpfulness，帮助性
+					\item score，评分
+					\item review\_time，评论时间
+					\item summary，总结
+					\item review\_text，评论文字
+				\end{itemize}
+			\end{itemize}
+	\end{itemize}
+	\subsubsection{深入改进}
+	在本机测试上述模型后发现比较慢，主要因为在Hbase中带有列过滤器的查询比较慢，所以考虑将要作为查询依据的属性和一些其他属性单独存到新的表中，然后以作为查询依据的属性为行键。这样我们又新建了以下几个表：
+	\begin{itemize}
+		\item dw\_movieInfo\_time
+			\begin{itemize}
+				\item 发行时间+递增整型数字（行键）
+				\item timeMap（列族），有如下列：
+				\begin{itemize}
+					\item title，电影名
+				\end{itemize}
+			\end{itemize}
+		\item dw\_movieInfo\_director
+			\begin{itemize}
+				\item 导演名+递增整型数字（行键）
+				\item directorMap（列族），有如下列：
+				\begin{itemize}
+					\item title，电影名
+				\end{itemize}
+			\end{itemize}
+		\item dw\_movieInfo\_actor
+		\begin{itemize}
+			\item 演员+递增整型数字（行键）
+			\item actorMap（列族），有如下列：
+			\begin{itemize}
+				\item title，电影名
+			\end{itemize}
+		\end{itemize}
+		\item dw\_movieInfo\_type
+		\begin{itemize}
+			\item 电影类型+递增整型数字（行键）
+			\item typeMap（列族），分别有如下列：
+			\begin{itemize}
+				\item title，电影名
+			\end{itemize}
+		\end{itemize}
+		\item dw\_movieInfo\_id
+		\begin{itemize}
+			\item 电影id（行键）
+			\item idMap（列族），分别有如下列：
+			\begin{itemize}
+				\item title，电影名
+			\end{itemize}
+		\end{itemize}
+	\end{itemize}
+	优化后的表一览
+        \begin{figure}[H]
+    		\centering
+    		\includegraphics[width=0.7\linewidth]{img/Hbase_tables.jpg}
+    		\caption{Hbase 表一览}
+    		\label{fig:Hbase_tables}
+    	\end{figure}
 	\subsection{实验数据}
+	\subsubsection{按时间查询}
+	    \begin{enumerate}
+	        \item 某某年上映了多少电影？
+    	        \begin{itemize}
+    	            \item 样例：2007 年上映了多少电影？
+    	            \item 结果：12117
+    	            \item 耗时：
+						\begin{longtable}{l|p{5cm}|l}
+							\hline
+							是否优化 & 执行时间采样 & 平均执行时间\\
+							\hline
+							\hline
+							优化前 &4435, 774, 818, 977, 755, 639, 732, 580, 741, 582 & 1103.3\\
+							优化后 &480, 157, 126, 310, 411, 297, 223, 187, 156, 271 & 261.8\\
+							\hline
+							\caption{执行时间比较}
+						\end{longtable}
+					\item 优化方法：将日期作为行键新建表
+					\item 优化效果：76.3%
+    	        \end{itemize}
+    	    \item 某某年某某月上映了多少电影？
+    	        \begin{itemize}
+    	            \item 样例：2007 年 1 月上映多少电影？
+    	            \item 结果：2066
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 &584, 459, 476, 595, 555, 597, 627, 447, 599, 488 & 542.7\\
+    	                    优化后 &67， 63， 102， 102，102，64，159，54，71，65 & 84.9\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：将日期作为行键新建表
+    	            \item 优化效果：84.3\%
+    	        \end{itemize}
+    	    \item 某某年某某季度上映了多少电影？
+    	        \begin{itemize}
+    	            \item 样例：2007 年第一季度上映了多少电影？
+    	            \item 结果：
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 627，697，606，599，627，632，589，620，728，610 & 633.5\\
+    	                    优化后 & 117，116，128，129，92，153，113，107，115，134 & 120.4\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：将时间作为行键新建表
+    	            \item 优化效果：82.2\%
+    	        \end{itemize}
+    	    \item 周某上映多少电影？
+    	        \begin{itemize}
+    	            \item 样例：周二上映多少电影？
+    	            \item 结果：124840
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 4102，1529，1503，1300，1315，1471，1483，1343，1338，1342 & 1672.6\\
+    	                    优化后 & 2000，750，637，632，599，499，500，572，509，528 & 722.6\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化效果：56.8\%
+    	        \end{itemize}
+	    \end{enumerate}
+	\subsubsection{按电影名称进行查询}
+	    \begin{enumerate}
+	        \item 某某电影是什么类型的？
+    	        \begin{itemize}
+    	            \item 样例：电影"Flintstones, The:S1 (DVD)"是什么类型的？
+    	            \item 结果：
+    	                \begin{lstlisting}
+"data": [
+	"Animation",
+]
+    	                \end{lstlisting}
+					\item 耗时：
+					\begin{itemize}
+						\item 执行时间采样：2498，454，397，491，377，396，403，406，433，410
+						\item 平均执行时间：1067.5
+					\end{itemize}
+				\item 无优化
+				\end{itemize}
+		\end{enumerate}
+	\subsubsection{按导演进行查询}
+	    \begin{enumerate}
+	        \item 某某导演执导了哪些电影？
+    	        \begin{itemize}
+    	            \item 样例：Ashwin Batish 执导了哪些电影？
+    	            \item 结果：
+						\begin{lstlisting}
+"data": [
+"Detective Inspector Irene Huss: Series 1, The Glass Devil (English Subtitled)",
+"Detective Inspector Irene Huss: Series 1, The Night Round (English Subtitled)",
+"Detective Inspector Irene Huss: Series 1, The Torso (English     Subtitled)",
+"Detective Inspector Irene Huss: Series 1,The Fire Dance (English Subtitled)",
+"Wallander: Episodes 1-3"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 690，467，482，513，453，396，455，404，482，378 & 472\\
+    	                    优化后 & 73，14，14，16，17，14，20，15，27，17 & 22.7\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：将导演作为行键建立新表
+    	            \item 优化效果：95.2\%
+    	        \end{itemize}
+	    \end{enumerate}
+	\subsubsection{按演员进行查询}
+	    \begin{enumerate}
+	        \item 某某演员在哪些电影中出演？
+    	        \begin{itemize}
+    	            \item 样例：Angela Kovacs 出演过哪些电影？
+    	            \item 结果：
+						\begin{lstlisting}
+"data": [
+	"Detective Inspector Irene Huss: Series 1, The Glass Devil (English Subtitled)",
+	"Detective Inspector Irene Huss: Series 1, The Night Round (English Subtitled)",
+	"Detective Inspector Irene Huss: Series 1, The Torso (English     Subtitled)",
+	"Detective Inspector Irene Huss: Series 1,The Fire Dance (English Subtitled)",
+	"Wallander: Episodes 1-3"
+]
+    	                \end{lstlisting}
+    	            \item 耗时：
+    	                \begin{longtable}{l|p{5cm}|l}
+    	                    \hline
+    	                    是否优化 & 执行时间采样 & 平均执行时间\\
+    	                    \hline
+    	                    \hline
+    	                    优化前 & 391，391，418，477，380，417，365，373，355，386 & 395.3\\
+    	                    优化后 & 32，25，17，17，14，10，20，11，13，11 & 17.3\\
+    	                    \hline
+    	                    \caption{执行时间比较}
+    	                \end{longtable}
+    	            \item 优化方法：将演员作为行键建立新表
+    	            \item 优化效果：95.6\%
+    	        \end{itemize}
+	    \end{enumerate}
 	\subsection{实验结论}
 	
 	\section{图数据库}
