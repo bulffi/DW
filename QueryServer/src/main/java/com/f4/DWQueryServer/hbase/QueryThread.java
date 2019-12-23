@@ -52,8 +52,12 @@ public class QueryThread extends Thread {
 
             for (Result result : resultScanner) {
                 index++;
-                byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
-                if (movieScore != null && Bytes.toDouble(movieScore) >= score_from && Bytes.toDouble(movieScore) <= score_to) {
+                byte[] movieScoreByte = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
+                if(movieScoreByte == null){
+                    continue;
+                }
+                double movieScore = Bytes.toDouble(movieScoreByte);
+                if (movieScore >= score_from && movieScore <= score_to) {
                     String movie = Bytes.toString(result.getValue(Bytes.toBytes("comment"),
                             Bytes.toBytes("title"))) + "  (" + movieScore + ")";
                     movies.add(movie);
