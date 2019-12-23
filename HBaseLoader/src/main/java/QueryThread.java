@@ -50,15 +50,19 @@ public class QueryThread extends Thread {
 
             for (Result result : resultScanner) {
                 index++;
-                byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
-                if (movieScore != null && Bytes.toDouble(movieScore) > score_from && Bytes.toDouble(movieScore) < score_to) {
+                byte[] movieScoreStr = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
+                if(movieScoreStr == null){
+                    continue;
+                }
+                double movieScore = Bytes.toDouble(movieScoreStr);
+                if (movieScore >= score_from && movieScore <= score_to) {
                     String movie = Bytes.toString(result.getValue(Bytes.toBytes("comment"),
-                            Bytes.toBytes("title")));
+                            Bytes.toBytes("title"))) + "  (" + movieScore + ")";
                     movies.add(movie);
                     System.out.println(movie);
                 }
             }
-            System.out.println("Sublist is"  + index);
+            System.out.println("Sublist has"  + index + " results");
             latch.countDown();
         } catch (IOException e) {
             e.printStackTrace();

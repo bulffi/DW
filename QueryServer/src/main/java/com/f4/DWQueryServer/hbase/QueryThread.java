@@ -55,12 +55,12 @@ public class QueryThread extends Thread {
                 byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
                 if (movieScore != null && Bytes.toDouble(movieScore) >= score_from && Bytes.toDouble(movieScore) <= score_to) {
                     String movie = Bytes.toString(result.getValue(Bytes.toBytes("comment"),
-                            Bytes.toBytes("title")));
+                            Bytes.toBytes("title"))) + "  (" + movieScore + ")";
                     movies.add(movie);
                     System.out.println(movie);
                 }
             }
-            System.out.println("Sublist is"  + index);
+            System.out.println("Sublist has"  + index + " results");
             latch.countDown();
         } catch (IOException e) {
             e.printStackTrace();

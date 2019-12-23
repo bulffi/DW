@@ -513,7 +513,7 @@ public class HbaseQuerier {
 
             for(Result result : resultScanner){
                 byte[] movieScore = result.getValue(Bytes.toBytes("comment"), Bytes.toBytes("score"));
-                if(movieScore != null && Bytes.toDouble(movieScore) > score_from && Bytes.toDouble(movieScore) < score_to) {
+                if(movieScore != null && Bytes.toDouble(movieScore) >= score_from && Bytes.toDouble(movieScore) <= score_to) {
                     index++;
                     System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("comment"),
                             Bytes.toBytes("title"))));
