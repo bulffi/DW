@@ -161,7 +161,7 @@ public class HbaseQuerier {
             for(Result result : resultScanner){
                 index++;
                 System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("timeMap"), Bytes.toBytes("title")))
-                + Bytes.toString(result.getRow()));
+                + "(" + Bytes.toString(result.getRow()) + ")");
             }
             resultScanner.close();
 
@@ -197,8 +197,8 @@ public class HbaseQuerier {
 
             for(Result result : resultScanner){
                 index++;
-                System.out.println(Bytes.toString(result.getRow()) + Bytes.toString(result.getValue(Bytes.toBytes("movie"),
-                        Bytes.toBytes("date"))));
+                System.out.println(Bytes.toString(result.getRow()) + "(" + Bytes.toString(result.getValue(Bytes.toBytes("movie"),
+                        Bytes.toBytes("date"))) + ")");
             }
 
             resultScanner.close();
@@ -239,7 +239,7 @@ public class HbaseQuerier {
             for(Result result : resultScanner){
                 index ++;
                 System.out.println(Bytes.toString(result.getValue(Bytes.toBytes("timeMap"), Bytes.toBytes("title")))
-                        + Bytes.toString(result.getRow()));
+                        + "(" + Bytes.toString(result.getRow()) + ")");
             }
 
             resultScanner.close();
@@ -284,8 +284,8 @@ public class HbaseQuerier {
             ResultScanner resultScanner = table.getScanner(scan);
             for(Result result : resultScanner){
                 index ++;
-                System.out.println(Bytes.toString(result.getRow()) + Bytes.toString(result.getValue(Bytes.toBytes("movie"),
-                        Bytes.toBytes("date"))));
+                System.out.println(Bytes.toString(result.getRow()) + "(" + Bytes.toString(result.getValue(Bytes.toBytes("movie"),
+                        Bytes.toBytes("date"))) + ")");
             }
 
             resultScanner.close();
