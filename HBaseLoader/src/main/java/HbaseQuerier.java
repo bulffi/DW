@@ -531,7 +531,7 @@ public class HbaseQuerier {
         long start = System.currentTimeMillis();
         final CountDownLatch latch = new CountDownLatch(numThreads);
         List<String>[] results = new ArrayList[numThreads];
-        int interval = 7910000 / numThreads + 1;
+        int interval = 7911697 / numThreads + 1;
         int count = 0;
 
         for(int i = 0; i < results.length; i++){
