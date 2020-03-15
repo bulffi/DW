@@ -1,4 +1,5 @@
 # Data warehouse
+具体说明请见**document.pdf**
 The course project for data warehouse. It consists of several parts as follows:
 
 - pre-processor (python [textblob](https://textblob.readthedocs.io/en/dev/quickstart.html#textblobs-are-like-python-strings))
@@ -23,6 +24,20 @@ BufferedReader reader = new BufferedReader(new FileReader("/Users/zhangzijian/Do
       loader.addMovieAlongWithDirectorAndActor(movie);
     } 
 ```
+
+## 数据清洗
+使用 MapReduce 模型进行去重
+![](doc/img/maprecude.png)
+
+
+## 数据模型
+### 关系型数据库
+![](doc/img/MySQL_DB2.png)
+### 图数据库
+![](doc/img/graph4.png)
+### 分布式 HBase 数据库
+![](doc/img/HBase_tables.jpg)
+
 
 ## 查询格式
 
